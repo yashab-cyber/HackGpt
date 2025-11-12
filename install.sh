@@ -51,7 +51,7 @@ sudo apt update && sudo apt upgrade -y
 
 # Install Python dependencies
 echo "[+] Installing Python dependencies..."
-pip install -r requirements.txt
+pip install -r requirements.txt --break-system-packages
 
 # Install available pentesting tools (skip unavailable ones)
 echo "[+] Installing available pentesting tools..."
