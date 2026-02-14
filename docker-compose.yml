@@ -7,9 +7,9 @@ services:
     container_name: hackgpt-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: hackgpt
-      POSTGRES_USER: hackgpt
-      POSTGRES_PASSWORD: hackgpt123
+      POSTGRES_DB: ${POSTGRES_DB:-hackgpt}
+      POSTGRES_USER: ${POSTGRES_USER:-hackgpt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env file}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -29,7 +29,7 @@ services:
     image: redis:7-alpine
     container_name: hackgpt-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass hackgpt123
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env file}
     volumes:
       - redis_data:/data
       - ./redis/redis.conf:/etc/redis/redis.conf:ro

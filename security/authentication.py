@@ -291,8 +291,10 @@ class LDAPAuthenticator:
             else:
                 conn = ldap3.Connection(server, auto_bind=True)
             
-            # Search for user
-            search_filter = f"(sAMAccountName={username})"
+            # Search for user (sanitize username to prevent LDAP injection)
+            from ldap3.utils.conv import escape_filter_chars
+            safe_username = escape_filter_chars(username)
+            search_filter = f"(sAMAccountName={safe_username})"
             conn.search(self.base_dn, search_filter, attributes=['displayName', 'mail', 'memberOf'])
             
             if not conn.entries:
@@ -368,7 +370,9 @@ class LDAPAuthenticator:
             'exp': datetime.utcnow() + timedelta(hours=8)  # 8 hour expiration
         }
         
-        secret_key = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+        secret_key = os.getenv('JWT_SECRET_KEY') or os.getenv('SECRET_KEY')
+        if not secret_key:
+            raise ValueError("JWT_SECRET_KEY or SECRET_KEY must be set in environment")
         return jwt.encode(payload, secret_key, algorithm='HS256')
 
 class LocalAuthenticator:
@@ -429,7 +433,9 @@ class LocalAuthenticator:
             'exp': datetime.utcnow() + timedelta(hours=8)  # 8 hour expiration
         }
         
-        secret_key = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+        secret_key = os.getenv('JWT_SECRET_KEY') or os.getenv('SECRET_KEY')
+        if not secret_key:
+            raise ValueError("JWT_SECRET_KEY or SECRET_KEY must be set in environment")
         return jwt.encode(payload, secret_key, algorithm='HS256')
 
 class EnterpriseAuth:
@@ -485,7 +491,9 @@ class EnterpriseAuth:
     def verify_token(self, token: str) -> AuthResult:
         """Verify JWT token"""
         try:
-            secret_key = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+            secret_key = os.getenv('JWT_SECRET_KEY') or os.getenv('SECRET_KEY')
+            if not secret_key:
+                return AuthResult(False, None, None, None, [], None, "Server JWT secret not configured")
             payload = jwt.decode(token, secret_key, algorithms=['HS256'])
             
             # Get user permissions

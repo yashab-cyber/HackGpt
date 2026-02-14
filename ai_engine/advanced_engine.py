@@ -406,7 +406,6 @@ class AdvancedAIEngine:
     def _setup_ai_models(self):
         """Setup AI models (OpenAI or local)"""
         if not self.local_mode:
-            openai.api_key = self.api_key
             self.logger.info("Using OpenAI API for AI analysis")
         else:
             self.logger.info("Setting up local AI models...")
@@ -518,8 +517,10 @@ Format your response as clear, actionable insights for penetration testers.
     def _analyze_openai(self, prompt: str) -> str:
         """Analyze using OpenAI API"""
         try:
-            response = openai.ChatCompletion.create(
-                model="gpt-4" if "gpt-4" in os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo') else "gpt-3.5-turbo",
+            client = openai.OpenAI(api_key=self.api_key)
+            model = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
+            response = client.chat.completions.create(
+                model=model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=2000,
                 temperature=0.7

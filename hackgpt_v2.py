@@ -353,7 +353,7 @@ class EnterpriseHackGPT:
         try:
             result = subprocess.run(['which', 'ollama'], capture_output=True, text=True)
             return result.returncode == 0
-        except:
+        except Exception:
             return False
     
     def create_fallback_ai(self):
@@ -878,16 +878,16 @@ class EnterpriseToolManager:
         try:
             result = subprocess.run(['which', tool_name], capture_output=True)
             return result.returncode == 0
-        except:
+        except Exception:
             return False
     
     def install_tool(self, tool_name):
         """Install a tool"""
         try:
-            subprocess.run(['apt', 'install', '-y', tool_name], check=True)
+            subprocess.run(['sudo', 'apt', 'install', '-y', tool_name], check=True)
             self.installed_tools.add(tool_name)
             return True
-        except:
+        except Exception:
             return False
 
 class EnterprisePentestingPhases:

@@ -51,7 +51,7 @@ class QueryOptimizer:
         """Apply a specific optimization rule"""
         # Simple rule application - can be extended
         if "add_limit" in rule.action and "LIMIT" not in query.upper():
-            if query_type := "sql" and "SELECT" in query.upper():
+            if "SELECT" in query.upper():
                 query += " LIMIT 1000"  # Add default limit
                 
         if "add_index_hint" in rule.action:

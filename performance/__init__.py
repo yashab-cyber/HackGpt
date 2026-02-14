@@ -7,7 +7,7 @@ including caching, parallel processing, load balancing, and performance monitori
 
 from .cache_manager import CacheManager, RedisCache, MemoryCache, get_cache_manager
 from .parallel_processor import ParallelProcessor, TaskQueue, get_parallel_processor
-from .performance_monitor import PerformanceMonitor, MetricsCollector, get_performance_monitor
+from .performance_monitor import PerformanceMonitor, get_performance_monitor
 from .load_balancer import LoadBalancer, HealthChecker, get_load_balancer
 from .optimization import QueryOptimizer, ResourceOptimizer, get_query_optimizer, get_resource_optimizer
 
@@ -22,7 +22,6 @@ __all__ = [
     'TaskQueue',
     'get_parallel_processor',
     'PerformanceMonitor',
-    'MetricsCollector',
     'get_performance_monitor',
     'LoadBalancer',
     'HealthChecker',

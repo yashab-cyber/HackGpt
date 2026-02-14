@@ -88,7 +88,10 @@ class DatabaseManager:
     def get_pentest_session(self, session_id: str) -> Optional[PentestSession]:
         """Get pentest session by ID"""
         with self.get_session() as session:
-            return session.query(PentestSession).filter(PentestSession.id == session_id).first()
+            result = session.query(PentestSession).filter(PentestSession.id == session_id).first()
+            if result:
+                session.expunge(result)
+            return result
     
     def update_session_status(self, session_id: str, status: str, user_id: str):
         """Update session status"""
@@ -131,15 +134,21 @@ class DatabaseManager:
     def get_vulnerabilities_by_session(self, session_id: str) -> List[Vulnerability]:
         """Get all vulnerabilities for a session"""
         with self.get_session() as session:
-            return session.query(Vulnerability).filter(Vulnerability.session_id == session_id).all()
+            results = session.query(Vulnerability).filter(Vulnerability.session_id == session_id).all()
+            for r in results:
+                session.expunge(r)
+            return results
     
     def get_vulnerabilities_by_severity(self, session_id: str, severity: str) -> List[Vulnerability]:
         """Get vulnerabilities by severity"""
         with self.get_session() as session:
-            return session.query(Vulnerability).filter(
+            results = session.query(Vulnerability).filter(
                 Vulnerability.session_id == session_id,
                 Vulnerability.severity == severity
             ).all()
+            for r in results:
+                session.expunge(r)
+            return results
     
     # Phase result management
     def create_phase_result(self, session_id: str, phase_name: str, phase_number: int,
@@ -175,9 +184,12 @@ class DatabaseManager:
     def get_phase_results(self, session_id: str) -> List[PhaseResult]:
         """Get all phase results for a session"""
         with self.get_session() as session:
-            return session.query(PhaseResult).filter(
+            results = session.query(PhaseResult).filter(
                 PhaseResult.session_id == session_id
             ).order_by(PhaseResult.phase_number).all()
+            for r in results:
+                session.expunge(r)
+            return results
     
     # User management
     def create_user(self, username: str, email: str, password_hash: str, role: str = 'analyst') -> str:
@@ -198,7 +210,10 @@ class DatabaseManager:
     def get_user_by_username(self, username: str) -> Optional[User]:
         """Get user by username"""
         with self.get_session() as session:
-            return session.query(User).filter(User.username == username).first()
+            result = session.query(User).filter(User.username == username).first()
+            if result:
+                session.expunge(result)
+            return result
     
     def update_user_login(self, user_id: str):
         """Update user last login time"""
@@ -237,7 +252,10 @@ class DatabaseManager:
             if resource_type:
                 query = query.filter(AuditLog.resource_type == resource_type)
                 
-            return query.order_by(AuditLog.timestamp.desc()).limit(limit).all()
+            results = query.order_by(AuditLog.timestamp.desc()).limit(limit).all()
+            for r in results:
+                session.expunge(r)
+            return results
     
     # Configuration management
     def set_configuration(self, key: str, value: Any, description: str = None, category: str = 'general'):
@@ -290,7 +308,10 @@ class DatabaseManager:
             if context_type:
                 query = query.filter(AIContext.context_type == context_type)
                 
-            return query.order_by(AIContext.created_at.desc()).all()
+            results = query.order_by(AIContext.created_at.desc()).all()
+            for r in results:
+                session.expunge(r)
+            return results
     
     # Attack Chain management
     def create_attack_chain(self, session_id: str, vulnerability_id: str, chain_sequence: int,
@@ -315,9 +336,12 @@ class DatabaseManager:
     def get_attack_chains(self, session_id: str) -> List[AttackChain]:
         """Get attack chains for session"""
         with self.get_session() as session:
-            return session.query(AttackChain).filter(
+            results = session.query(AttackChain).filter(
                 AttackChain.session_id == session_id
             ).order_by(AttackChain.risk_score.desc()).all()
+            for r in results:
+                session.expunge(r)
+            return results
     
     # Analytics and reporting
     def get_session_statistics(self, session_id: str) -> Dict[str, Any]:

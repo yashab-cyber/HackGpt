@@ -13,34 +13,34 @@ jobs:
     steps:
     - name: Welcome new issue creator
       if: github.event_name == 'issues'
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       with:
         script: |
           const welcomeMessage = `
           👋 **Welcome to HackGPT Enterprise!**
-          
+
           Thank you for opening your first issue! We're excited to have you as part of our cybersecurity community.
-          
+
           ## 🚀 What happens next?
           - Our team will review your issue within 24-48 hours
           - You'll receive updates on progress and any questions we might have
           - Feel free to join our [WhatsApp Business Channel](https://whatsapp.com/channel/0029Vaoa1GfKLaHlL0Kc8k1q) for real-time updates
-          
+
           ## 🤝 Want to contribute?
           - Check out our [Contributing Guide](.github/CONTRIBUTING.md)
           - Browse [good first issues](https://github.com/yashab-cyber/HackGPT/labels/good%20first%20issue)
           - Join our community discussions
-          
+
           ## 💰 Support the Project
           - ⭐ Star the repository
           - 💰 [Support development](DONATE.md)
           - 📢 Share with your network
-          
+
           **Created by [Yashab Alam](https://github.com/yashab-cyber) & [ZehraSec](https://www.zehrasec.com)**
-          
+
           Thank you for helping make cybersecurity more accessible through AI! 🛡️
           `;
-          
+
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
@@ -50,41 +50,41 @@ jobs:
 
     - name: Welcome new contributor
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       with:
         script: |
           const welcomeMessage = `
           🎉 **Thank you for your first contribution to HackGPT Enterprise!**
-          
+
           We're thrilled to have you contributing to the future of AI-powered cybersecurity!
-          
+
           ## 📋 Review Process
           - Our team will review your PR within 24-48 hours
           - We may request changes or ask questions
           - Once approved, your contribution will be merged
-          
+
           ## 🏆 Recognition
           - All contributors are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md)
           - You'll receive a contributor badge
           - Significant contributions get special recognition
-          
+
           ## 💡 Need Help?
           - Check our [Contributing Guide](.github/CONTRIBUTING.md)
           - Join [WhatsApp Business Channel](https://whatsapp.com/channel/0029Vaoa1GfKLaHlL0Kc8k1q)
           - Email: yashabalam707@gmail.com
-          
+
           ## 🌟 Ways to Get More Involved
           - 🐛 Help with bug fixes
           - ✨ Contribute new features
           - 📚 Improve documentation
           - 🔒 Report security issues
           - 💰 [Sponsor the project](DONATE.md)
-          
+
           **Welcome to the HackGPT Enterprise family! 🚀**
-          
+
           *Made with ❤️ by [Yashab Alam](https://github.com/yashab-cyber) & [ZehraSec](https://www.zehrasec.com)*
           `;
-          
+
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
@@ -98,37 +98,37 @@ jobs:
     if: github.event_name == 'issues'
     steps:
     - name: Add labels to new issues
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       with:
         script: |
           const title = context.payload.issue.title.toLowerCase();
-          const body = context.payload.issue.body.toLowerCase();
+          const body = (context.payload.issue.body || '').toLowerCase();
           const labels = [];
-          
+
           // Auto-assign labels based on content
           if (title.includes('bug') || body.includes('error') || body.includes('exception')) {
             labels.push('bug');
           }
-          
+
           if (title.includes('feature') || title.includes('enhancement') || body.includes('feature request')) {
             labels.push('enhancement');
           }
-          
+
           if (title.includes('security') || body.includes('vulnerability') || body.includes('security')) {
             labels.push('security');
           }
-          
+
           if (title.includes('doc') || title.includes('documentation') || body.includes('documentation')) {
             labels.push('documentation');
           }
-          
+
           if (title.includes('sponsorship') || title.includes('investment') || title.includes('partnership')) {
             labels.push('partnership');
           }
-          
+
           // Always add needs-triage for new issues
           labels.push('needs-triage');
-          
+
           if (labels.length > 0) {
             github.rest.issues.addLabels({
               issue_number: context.issue.number,
@@ -144,7 +144,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
     - name: Auto-assign reviewers
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       with:
         script: |
           // Assign main maintainer as reviewer
@@ -154,23 +154,23 @@ jobs:
             pull_number: context.issue.number,
             reviewers: ['yashab-cyber']
           });
-          
+
           // Add appropriate labels
           const title = context.payload.pull_request.title.toLowerCase();
           const labels = ['needs-review'];
-          
+
           if (title.includes('fix') || title.includes('bug')) {
             labels.push('bug-fix');
           }
-          
+
           if (title.includes('feat') || title.includes('feature')) {
             labels.push('enhancement');
           }
-          
+
           if (title.includes('doc')) {
             labels.push('documentation');
           }
-          
+
           github.rest.issues.addLabels({
             issue_number: context.issue.number,
             owner: context.repo.owner,

@@ -184,11 +184,14 @@ class Config:
 config = Config()
 
 # Setup logging
+log_dir = Path('logs')
+log_dir.mkdir(exist_ok=True)
+
 logging.basicConfig(
     level=getattr(logging, config.LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/hackgpt.log'),
+        logging.FileHandler(log_dir / 'hackgpt.log'),
         logging.StreamHandler()
     ]
 )
@@ -220,8 +223,6 @@ class AIEngine:
         if self.local_mode:
             self.console.print("[yellow]No OpenAI API key found. Running in local mode.[/yellow]")
             self.setup_local_llm()
-        else:
-            openai.api_key = self.api_key
             
     def setup_local_llm(self):
         """Setup local LLM using ollama"""
@@ -229,7 +230,7 @@ class AIEngine:
             result = subprocess.run(['which', 'ollama'], capture_output=True, text=True)
             if result.returncode != 0:
                 self.console.print("[yellow]Installing ollama for local AI...[/yellow]")
-                subprocess.run(['curl', '-fsSL', 'https://ollama.ai/install.sh', '|', 'sh'], shell=True)
+                subprocess.run('curl -fsSL https://ollama.ai/install.sh | sh', shell=True)
             
             # Pull a lightweight model
             subprocess.run(['ollama', 'pull', 'llama2:7b'], check=True)
@@ -268,7 +269,8 @@ class AIEngine:
     def _query_openai(self, prompt):
         """Query OpenAI API"""
         try:
-            response = openai.ChatCompletion.create(
+            client = openai.OpenAI(api_key=self.api_key)
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1000,
@@ -383,10 +385,18 @@ class ToolManager:
         """Execute a system command safely"""
         try:
             self.console.print(f"[cyan]Executing: {command}[/cyan]")
-            result = subprocess.run(
-                command.split() if isinstance(command, str) else command,
-                capture_output=True, text=True, timeout=timeout
-            )
+            # Use shell=True for commands with pipes/redirects, otherwise split
+            if isinstance(command, str) and any(c in command for c in '|;&><$`'):
+                result = subprocess.run(
+                    command,
+                    capture_output=True, text=True, timeout=timeout,
+                    shell=True
+                )
+            else:
+                result = subprocess.run(
+                    command.split() if isinstance(command, str) else command,
+                    capture_output=True, text=True, timeout=timeout
+                )
             return {
                 'success': result.returncode == 0,
                 'stdout': result.stdout,
