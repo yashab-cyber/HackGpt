@@ -103,7 +103,7 @@ class Config:
         self.load_config()
         
         # Environment variables override config file
-        self.DATABASE_URL = os.getenv("DATABASE_URL", self.config.get("database", "url", fallback="postgresql://hackgpt:hackgpt123@localhost:5432/hackgpt"))
+        self.DATABASE_URL = os.getenv("DATABASE_URL", self.config.get("database", "url", fallback=""))
         self.REDIS_URL = os.getenv("REDIS_URL", self.config.get("cache", "redis_url", fallback="redis://localhost:6379/0"))
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", self.config.get("ai", "openai_api_key", fallback=""))
         self.SECRET_KEY = os.getenv("SECRET_KEY", self.config.get("security", "secret_key", fallback=str(uuid.uuid4())))
@@ -135,7 +135,7 @@ class Config:
         """Create default configuration file"""
         sections = {
             "app": {"debug": "false", "log_level": "INFO"},
-            "database": {"url": "postgresql://hackgpt:hackgpt123@localhost:5432/hackgpt"},
+            "database": {"url": ""},
             "cache": {"redis_url": "redis://localhost:6379/0"},
             "ai": {"openai_api_key": "", "local_model": "llama2:7b"},
             "security": {"secret_key": str(uuid.uuid4()), "jwt_algorithm": "HS256", "jwt_expiry": "3600"},
@@ -353,7 +353,8 @@ class EnterpriseHackGPT:
         try:
             result = subprocess.run(['which', 'ollama'], capture_output=True, text=True)
             return result.returncode == 0
-        except Exception:
+        except Exception as e:
+            self.logger.debug("check_local_llm failed: %s", e)
             return False
     
     def create_fallback_ai(self):
@@ -725,8 +726,19 @@ class EnterpriseHackGPT:
             self.console.print("[red]Flask not available for API server[/red]")
             return
         
-        from flask import Flask, request, jsonify
+        from flask import Flask, request, jsonify, Response
         from flask_cors import CORS
+        try:
+            from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+        except ImportError:
+            CONTENT_TYPE_LATEST = 'text/plain; version=0.0.4; charset=utf-8'
+
+            def generate_latest():
+                return (
+                    b"# HELP hackgpt_app_up HackGPT API metrics endpoint status\n"
+                    b"# TYPE hackgpt_app_up gauge\n"
+                    b"hackgpt_app_up 1\n"
+                )
         
         app = Flask(__name__)
         CORS(app)
@@ -739,6 +751,10 @@ class EnterpriseHackGPT:
                 "version": "2.0.0",
                 "timestamp": datetime.utcnow().isoformat()
             })
+
+        @app.route('/metrics', methods=['GET'])
+        def metrics():
+            return Response(generate_latest(), content_type=CONTENT_TYPE_LATEST)
         
         @app.route('/api/pentest/start', methods=['POST'])
         def start_pentest():
@@ -878,7 +894,8 @@ class EnterpriseToolManager:
         try:
             result = subprocess.run(['which', tool_name], capture_output=True)
             return result.returncode == 0
-        except Exception:
+        except Exception as e:
+            logger.debug("check_tool(%s) failed: %s", tool_name, e)
             return False
     
     def install_tool(self, tool_name):
@@ -887,7 +904,8 @@ class EnterpriseToolManager:
             subprocess.run(['sudo', 'apt', 'install', '-y', tool_name], check=True)
             self.installed_tools.add(tool_name)
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("install_tool(%s) failed: %s", tool_name, e)
             return False
 
 class EnterprisePentestingPhases:

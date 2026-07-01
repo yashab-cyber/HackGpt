@@ -97,16 +97,20 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-xdist
+        pip install -r requirements-dev.txt
+
+    - name: Run unit tests
+      run: |
+        pytest tests/ -v --cov=. --cov-report=xml --tb=short
 
     - name: Run installation tests
       run: |
-        python test_installation.py || true
+        python test_installation.py
 
     - name: Run import tests
       run: |
-        python -c "from hackgpt import HackGPT, AIEngine, ToolManager; print('Import successful')" || true
+        python -c "from hackgpt import HackGPT, AIEngine, ToolManager; print('Import successful')"
+        python -c "import hackgpt_v2; print('hackgpt_v2 import successful')"
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

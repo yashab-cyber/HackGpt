@@ -1,0 +1,15 @@
+# HackGPT Prometheus scrape configuration
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus scraping itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # HackGPT application metrics
+  - job_name: 'hackgpt-app'
+    static_configs:
+      - targets: ['hackgpt-app:8000']

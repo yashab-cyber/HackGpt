@@ -56,8 +56,8 @@ services:
       hackgpt-redis:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://hackgpt:hackgpt123@hackgpt-database:5432/hackgpt
-      - REDIS_URL=redis://:hackgpt123@hackgpt-redis:6379/0
+      - DATABASE_URL=postgresql://hackgpt:${POSTGRES_PASSWORD}@hackgpt-database:5432/hackgpt
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@hackgpt-redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - SECRET_KEY=${SECRET_KEY}
       - LOG_LEVEL=INFO
@@ -99,8 +99,8 @@ services:
       hackgpt-redis:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://hackgpt:hackgpt123@hackgpt-database:5432/hackgpt
-      - REDIS_URL=redis://:hackgpt123@hackgpt-redis:6379/0
+      - DATABASE_URL=postgresql://hackgpt:${POSTGRES_PASSWORD}@hackgpt-database:5432/hackgpt
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@hackgpt-redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - SECRET_KEY=${SECRET_KEY}
       - LOG_LEVEL=INFO
@@ -128,8 +128,8 @@ services:
       hackgpt-redis:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://hackgpt:hackgpt123@hackgpt-database:5432/hackgpt
-      - REDIS_URL=redis://:hackgpt123@hackgpt-redis:6379/0
+      - DATABASE_URL=postgresql://hackgpt:${POSTGRES_PASSWORD}@hackgpt-database:5432/hackgpt
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@hackgpt-redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - SECRET_KEY=${SECRET_KEY}
       - LOG_LEVEL=INFO
@@ -166,7 +166,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=hackgpt123
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?Set GRAFANA_PASSWORD in .env file}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
@@ -246,11 +246,11 @@ services:
       dockerfile: Dockerfile
     container_name: hackgpt-flower
     restart: unless-stopped
-    command: celery -A performance.parallel_processor flower --port=5555 --broker=redis://:hackgpt123@hackgpt-redis:6379/0
+    command: celery -A performance.parallel_processor flower --port=5555 --broker=redis://:${REDIS_PASSWORD}@hackgpt-redis:6379/0
     ports:
       - "5555:5555"
     environment:
-      - REDIS_URL=redis://:hackgpt123@hackgpt-redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@hackgpt-redis:6379/0
     networks:
       - hackgpt-network
     depends_on:

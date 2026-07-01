@@ -3,3 +3,17 @@
 __pycache__/
 *.pyo
 *.pyd
+
+# Secrets / environment files
+.env
+*.env
+!.env.example
+
+# Runtime artifacts
+reports/
+logs/
+*.log
+
+# Virtual environments
+venv/
+.venv/

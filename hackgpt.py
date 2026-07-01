@@ -30,6 +30,7 @@ from pathlib import Path
 import threading
 import queue
 import hashlib
+import shlex
 import uuid
 from typing import Dict, List, Any, Optional, Union
 
@@ -108,7 +109,7 @@ class Config:
         self.load_config()
         
         # Environment variables override config file
-        self.DATABASE_URL = os.getenv("DATABASE_URL", self.config.get("database", "url", fallback="postgresql://hackgpt:hackgpt123@localhost:5432/hackgpt"))
+        self.DATABASE_URL = os.getenv("DATABASE_URL", self.config.get("database", "url", fallback=""))
         self.REDIS_URL = os.getenv("REDIS_URL", self.config.get("cache", "redis_url", fallback="redis://localhost:6379/0"))
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", self.config.get("ai", "openai_api_key", fallback=""))
         self.SECRET_KEY = os.getenv("SECRET_KEY", self.config.get("security", "secret_key", fallback=str(uuid.uuid4())))
@@ -144,7 +145,7 @@ class Config:
         self.config.set("app", "log_level", "INFO")
         
         self.config.add_section("database")
-        self.config.set("database", "url", "postgresql://hackgpt:hackgpt123@localhost:5432/hackgpt")
+        self.config.set("database", "url", "")
         
         self.config.add_section("cache")
         self.config.set("cache", "redis_url", "redis://localhost:6379/0")
@@ -230,7 +231,11 @@ class AIEngine:
             result = subprocess.run(['which', 'ollama'], capture_output=True, text=True)
             if result.returncode != 0:
                 self.console.print("[yellow]Installing ollama for local AI...[/yellow]")
-                subprocess.run('curl -fsSL https://ollama.ai/install.sh | sh', shell=True)
+                curl_result = subprocess.run(
+                    ['curl', '-fsSL', 'https://ollama.ai/install.sh'],
+                    capture_output=True, check=True, timeout=120,
+                )
+                subprocess.run(['sh'], input=curl_result.stdout, check=True, timeout=300)
             
             # Pull a lightweight model
             subprocess.run(['ollama', 'pull', 'llama2:7b'], check=True)
@@ -381,22 +386,64 @@ class ToolManager:
         
         return len(missing_tools) == 0
     
+    def _run_pipeline(self, command, timeout=300):
+        """Run cmd1 | cmd2 | ... without shell=True."""
+        segments = self._split_pipeline(command)
+        procs = []
+        for i, args in enumerate(segments):
+            stdin = procs[-1].stdout if procs else None
+            proc = subprocess.Popen(
+                args,
+                stdin=stdin,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if procs:
+                procs[-1].stdout.close()
+            procs.append(proc)
+        stdout, stderr = procs[-1].communicate(timeout=timeout)
+        for proc in procs[:-1]:
+            proc.wait(timeout=timeout)
+        return subprocess.CompletedProcess(segments[-1], procs[-1].returncode, stdout, stderr)
+
+    def _split_pipeline(self, command):
+        """Split a command on unquoted pipe separators."""
+        lexer = shlex.shlex(command, posix=True, punctuation_chars='|')
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+        segments = [[]]
+
+        for token in tokens:
+            if token == '|':
+                if not segments[-1]:
+                    raise ValueError("Empty command in pipeline")
+                segments.append([])
+            else:
+                segments[-1].append(token)
+
+        if not segments[-1]:
+            raise ValueError("Empty command in pipeline")
+
+        return segments
+
     def run_command(self, command, timeout=300):
-        """Execute a system command safely"""
+        """Execute a system command safely (never uses shell=True)."""
         try:
             self.console.print(f"[cyan]Executing: {command}[/cyan]")
-            # Use shell=True for commands with pipes/redirects, otherwise split
-            if isinstance(command, str) and any(c in command for c in '|;&><$`'):
-                result = subprocess.run(
-                    command,
-                    capture_output=True, text=True, timeout=timeout,
-                    shell=True
-                )
+            if isinstance(command, list):
+                result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+            elif '|' in command:
+                result = self._run_pipeline(command, timeout=timeout)
+            elif any(c in command for c in ';>&<`$'):
+                return {
+                    'success': False,
+                    'stdout': '',
+                    'stderr': 'Unsupported shell metacharacters in command',
+                    'command': command
+                }
             else:
-                result = subprocess.run(
-                    command.split() if isinstance(command, str) else command,
-                    capture_output=True, text=True, timeout=timeout
-                )
+                result = subprocess.run(shlex.split(command), capture_output=True, text=True, timeout=timeout)
             return {
                 'success': result.returncode == 0,
                 'stdout': result.stdout,
@@ -408,6 +455,13 @@ class ToolManager:
                 'success': False,
                 'stdout': '',
                 'stderr': f'Command timed out after {timeout} seconds',
+                'command': command
+            }
+        except ValueError as e:
+            return {
+                'success': False,
+                'stdout': '',
+                'stderr': str(e),
                 'command': command
             }
         except Exception as e:
