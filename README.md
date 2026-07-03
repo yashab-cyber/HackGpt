@@ -8,12 +8,12 @@
     <img src="https://img.shields.io/badge/Python-3.8+-blue.svg" alt="Python 3.8+">
     <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-orange.svg" alt="Multi-Platform">
     <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT License">
-    <img src="https://img.shields.io/badge/AI-GPT%20%7C%20Local%20LLM%20%7C%20ML-purple.svg" alt="AI Powered">
+    <img src="https://img.shields.io/badge/AI-Multi--Provider%20(7%20Providers%20%7C%2026%2B%20Models)-purple.svg" alt="AI Multi-Provider">
   </p>
   <p>
     <img src="https://img.shields.io/badge/Architecture-Microservices-red.svg" alt="Microservices">
     <img src="https://img.shields.io/badge/Cloud-Docker%20%7C%20Kubernetes-lightblue.svg" alt="Cloud Native">
-    <img src="https://img.shields.io/badge/Version-2026.07.beta-success.svg" alt="Version 2026.07.beta">
+    <img src="https://img.shields.io/badge/Version-2026.07.beta.3-success.svg" alt="Version 2026.07.beta.3">
     <img src="https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg" alt="Production Ready">
   </p>
 </div>
@@ -26,8 +26,10 @@
 
 ## 🏢 Enterprise Features
 
-### 🤖 Advanced AI Engine
-- **Multi-Model Support**: OpenAI GPT-4, Local LLM (Ollama), TensorFlow, PyTorch
+### 🤖 Advanced AI Engine — Multi-Provider Support
+- **7 AI Providers**: OpenAI, Anthropic (Claude), Google (Gemini), DeepSeek, GLM (Zhipu), Local LLMs (Ollama), OpenRouter
+- **26+ AI Models**: GPT-5, GPT-5.6, o3, o4-mini, Claude Sonnet 5, Opus 4.8, Gemini 3.5 Flash, 3.1 Pro, DeepSeek R1, and more
+- **Runtime Model Switching**: Change AI models on-the-fly with automatic provider fallback
 - **Machine Learning**: Pattern recognition, anomaly detection, behavioral analysis
 - **Zero-Day Detection**: ML-powered vulnerability discovery and correlation
 - **Risk Intelligence**: CVSS scoring, impact assessment, exploit prioritization
@@ -155,7 +157,12 @@ graph TD
     
     C --> G[LDAP/AD]
     D --> H[OpenAI API]
-    D --> I[Local LLM]
+    D --> H2[Anthropic API]
+    D --> H3[Google Gemini API]
+    D --> H4[DeepSeek API]
+    D --> H5[GLM / Zhipu API]
+    D --> H6[OpenRouter API]
+    D --> I[Local LLM / Ollama]
     D --> J[ML Models]
     
     E --> K[Parallel Processor]
@@ -204,8 +211,11 @@ pool_size = 20
 backup_enabled = true
 
 [ai]
+default_model = gpt-5
+default_provider = 
 openai_api_key = your_key_here
-openai_model = gpt-4
+anthropic_api_key = your_key_here
+google_api_key = your_key_here
 enable_local_fallback = true
 confidence_threshold = 0.8
 
@@ -235,7 +245,16 @@ Over 100 environment variables for enterprise deployment:
 # Core Services
 DATABASE_URL=postgresql://hackgpt:hackgpt123@localhost:5432/hackgpt
 REDIS_URL=redis://localhost:6379/0
+
+# AI Configuration — Multi-Provider
+HACKGPT_MODEL=gpt-5               # Any model from ai_engine/model_registry.py
 OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+GOOGLE_API_KEY=your_google_api_key
+DEEPSEEK_API_KEY=your_deepseek_api_key
+GLM_API_KEY=your_glm_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
+LOCAL_LLM_ENDPOINT=http://localhost:11434
 
 # Security
 SECRET_KEY=your_secret_key
@@ -418,11 +437,24 @@ http://localhost:3000
 
 ## 🛠️ Advanced Usage
 
-### Custom AI Models
+### Multi-Provider AI Models
 ```python
-# Configure custom AI endpoints
-config['ai']['custom_model_endpoint'] = 'http://your-llm:8000'
-config['ai']['model_type'] = 'custom'
+from ai_engine import get_advanced_ai_engine, list_all_models, get_available_providers
+
+# Initialize with a specific model
+engine = get_advanced_ai_engine(model_id='claude-sonnet-5')
+
+# Switch models at runtime
+engine.set_model('gemini-3.5-flash')
+
+# List all 26+ available models
+for model in engine.list_available_models():
+    status = "✅" if model['available'] else "❌"
+    print(f"{status} {model['display_name']} ({model['provider']})")
+
+# Check available providers
+for provider in get_available_providers():
+    print(f"{provider['name']}: {provider['model_count']} models")
 ```
 
 ### Custom Compliance Frameworks
@@ -559,12 +591,15 @@ redis-cli FLUSHALL
 
 #### AI Engine Issues
 ```bash
-# Test OpenAI connectivity
-python3 -c "import openai; print(openai.Model.list())"
+# List available AI models and providers
+python3 -c "from ai_engine import list_all_models; [print(m.display_name, m.provider.value) for m in list_all_models()]"
 
-# Check local LLM
+# Test provider connectivity
+python3 -c "from ai_engine.providers import ProviderFactory; print(ProviderFactory.get_available_providers())"
+
+# Check local LLM (Ollama)
 ollama list
-ollama run llama2:7b
+ollama run llama3.3:70b
 ```
 
 #### Worker Pool Issues
@@ -632,16 +667,17 @@ This project is licensed under the MIT License with additional enterprise terms:
 ## 🗺️ Roadmap
 
 ### Version 2.1 (Q3 2025)
-- [ ] Advanced threat hunting capabilities
+- [x] Multi-provider AI support (OpenAI, Anthropic, Google, DeepSeek, GLM, Local, OpenRouter)
+- [x] 26+ model catalog with runtime switching
+- [x] Provider fallback chain and automatic detection
 - [ ] ML-based false positive reduction
 - [ ] Integration with popular SIEM systems
-- [ ] Mobile application for executives
 
-### Version 2.2 (Q4 2025) 
+### Version 2.2 (Q4 2025)
+- [ ] Streaming responses from all providers
 - [ ] Automated penetration testing workflows
 - [ ] Advanced cloud security assessments
 - [ ] Integration with CI/CD pipelines
-- [ ] Enhanced compliance reporting
 
 ### Version 3.0 (Q1 2026)
 - [ ] Fully autonomous security assessments
@@ -661,7 +697,10 @@ This project is licensed under the MIT License with additional enterprise terms:
 - 💬 **WhatsApp**: [Business Channel](https://whatsapp.com/channel/0029Vaoa1GfKLaHlL0Kc8k1q)
 
 ### Acknowledgments
-- OpenAI for GPT-4 API access
+- OpenAI for GPT-5 and o-series API access
+- Anthropic for the Claude model family
+- Google DeepMind for Gemini models
+- DeepSeek, Zhipu AI (GLM), and OpenRouter
 - Ollama team for local LLM support
 - Docker & Kubernetes communities
 - Security research community

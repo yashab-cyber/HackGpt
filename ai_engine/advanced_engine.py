@@ -17,6 +17,17 @@ from concurrent.futures import ThreadPoolExecutor
 import subprocess
 import requests
 
+# Multi-provider AI imports
+try:
+    from .model_registry import (
+        ModelProvider, ModelInfo, MODEL_CATALOG,
+        get_model_info, list_all_models, get_models_by_provider,
+        get_available_providers
+    )
+    from .providers import ProviderFactory, BaseProvider
+except ImportError as e:
+    logging.warning(f"Multi-provider modules not available: {e}")
+
 # ML and AI imports
 try:
     import openai
@@ -394,10 +405,15 @@ class VulnerabilityCorrelator:
 class AdvancedAIEngine:
     """Advanced AI Engine with context awareness and ML capabilities"""
     
-    def __init__(self, session_id: str = None):
+    def __init__(self, session_id: str = None, model_id: str = None, provider: str = None):
         self.session_id = session_id
         self.api_key = os.getenv('OPENAI_API_KEY')
-        self.local_mode = not bool(self.api_key)
+        
+        # Multi-provider model selection
+        self.model_id = model_id or os.getenv('HACKGPT_MODEL', os.getenv('OPENAI_MODEL', 'gpt-4o'))
+        self.provider_name = provider or os.getenv('HACKGPT_PROVIDER', None)
+        self.active_provider = None
+        self.active_model_info = None
         
         # Initialize components
         self.pattern_recognizer = PatternRecognizer()
@@ -405,6 +421,8 @@ class AdvancedAIEngine:
         
         if session_id:
             self.context_manager = ContextManager(session_id)
+        else:
+            self.context_manager = None
         
         self.logger = logging.getLogger(__name__)
         
@@ -412,12 +430,31 @@ class AdvancedAIEngine:
         self._setup_ai_models()
         
     def _setup_ai_models(self):
-        """Setup AI models (OpenAI or local)"""
-        if not self.local_mode:
-            self.logger.info("Using OpenAI API for AI analysis")
-        else:
-            self.logger.info("Setting up local AI models...")
-            self._setup_local_models()
+        """Setup AI models with multi-provider support"""
+        try:
+            # Try to resolve the selected model via the provider factory
+            provider_instance, model_info = ProviderFactory.get_provider_for_model(self.model_id)
+            if provider_instance.is_available():
+                self.active_provider = provider_instance
+                self.active_model_info = model_info
+                self.local_mode = False
+                self.logger.info(
+                    f"Using {model_info.provider.value} provider with model '{model_info.display_name}'"
+                )
+                return
+        except Exception as e:
+            self.logger.warning(f"Could not initialize provider for model '{self.model_id}': {e}")
+        
+        # Fallback: try OpenAI API key directly
+        if self.api_key:
+            self.local_mode = False
+            self.logger.info("Falling back to direct OpenAI API")
+            return
+        
+        # Final fallback: local models
+        self.local_mode = True
+        self.logger.info("Setting up local AI models...")
+        self._setup_local_models()
     
     def _setup_local_models(self):
         """Setup local AI models"""
@@ -523,10 +560,30 @@ Format your response as clear, actionable insights for penetration testers.
         return prompt
     
     def _analyze_openai(self, prompt: str) -> str:
-        """Analyze using OpenAI API"""
+        """Analyze using configured AI provider (multi-provider support)"""
+        # Use multi-provider system if available
+        if self.active_provider:
+            try:
+                messages = [{"role": "user", "content": prompt}]
+                max_tokens = 2000
+                if self.active_model_info:
+                    max_tokens = min(2000, self.active_model_info.max_tokens)
+                
+                result = self.active_provider.chat_completion(
+                    model_id=self.model_id,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=0.7
+                )
+                return result
+            except Exception as e:
+                self.logger.error(f"Provider '{self.active_provider.provider_name}' error: {e}")
+                self.logger.info("Attempting fallback to direct OpenAI API...")
+        
+        # Fallback to direct OpenAI API call
         try:
             client = openai.OpenAI(api_key=self.api_key)
-            model = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
+            model = os.getenv('OPENAI_MODEL', 'gpt-4o')
             response = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
@@ -705,3 +762,66 @@ Format your response as clear, actionable insights for penetration testers.
             next_steps.append('Test network service configurations')
         
         return next_steps
+
+    def set_model(self, model_id: str) -> bool:
+        """Switch to a different AI model at runtime"""
+        try:
+            provider_instance, model_info = ProviderFactory.get_provider_for_model(model_id)
+            if provider_instance.is_available():
+                self.model_id = model_id
+                self.active_provider = provider_instance
+                self.active_model_info = model_info
+                self.local_mode = False
+                self.logger.info(f"Switched to model '{model_info.display_name}' via {model_info.provider.value}")
+                return True
+            else:
+                self.logger.warning(f"Provider for model '{model_id}' is not available")
+                return False
+        except Exception as e:
+            self.logger.error(f"Error switching to model '{model_id}': {e}")
+            return False
+    
+    def get_current_model(self) -> Dict[str, Any]:
+        """Get information about the currently active model"""
+        if self.active_model_info:
+            return {
+                'model_id': self.model_id,
+                'display_name': self.active_model_info.display_name,
+                'provider': self.active_model_info.provider.value,
+                'max_tokens': self.active_model_info.max_tokens,
+                'context_window': self.active_model_info.context_window,
+                'supports_streaming': self.active_model_info.supports_streaming,
+                'supports_tools': self.active_model_info.supports_tools,
+            }
+        return {
+            'model_id': self.model_id or os.getenv('OPENAI_MODEL', 'gpt-4o'),
+            'display_name': 'Unknown',
+            'provider': 'openai' if self.api_key else 'local',
+            'local_mode': self.local_mode,
+        }
+    
+    def list_available_models(self) -> List[Dict[str, Any]]:
+        """List all available AI models across all providers"""
+        try:
+            models = list_all_models()
+            available = []
+            for model in models:
+                try:
+                    provider_instance = ProviderFactory.get_provider(model.provider)
+                    is_available = provider_instance.is_available()
+                except Exception:
+                    is_available = False
+                
+                available.append({
+                    'model_id': model.model_id,
+                    'display_name': model.display_name,
+                    'provider': model.provider.value,
+                    'max_tokens': model.max_tokens,
+                    'context_window': model.context_window,
+                    'available': is_available,
+                    'description': model.description,
+                })
+            return available
+        except Exception as e:
+            self.logger.error(f"Error listing models: {e}")
+            return []

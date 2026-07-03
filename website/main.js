@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (lowerCmd === 'about') {
-            writeLine('<strong>HackGPT Enterprise v2026.07.beta</strong>');
+            writeLine('<strong>HackGPT Enterprise v2026.07.beta.3</strong>');
             writeLine('An advanced, AI-powered penetration testing platform. It uses agentic workflows to orchestrate standard security tools under a structured six-phase framework, combined with machine learning anomaly detectors.');
             writeLine('Developed by Yashab Alam.');
             return;

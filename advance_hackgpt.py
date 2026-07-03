@@ -2,7 +2,7 @@
 """
 HackGPT - Enterprise AI-Powered Penetration Testing Platform
 Author: HackGPT Team
-Version: 2026.07.beta (Production-Ready)
+Version: 2026.07.beta.3 (Production-Ready)
 Description: Enterprise-grade pentesting automation platform with advanced AI, microservices architecture,
             and cloud-native capabilities for professional security assessments.
 
@@ -183,7 +183,7 @@ BANNER = """
     ██║  ██║██║  ██║╚██████╗██║  ██╗╚██████╔╝██║        ██║   
     ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝        ╚═╝   
 [/bold red]
-[bold cyan]      Enterprise AI-Powered Penetration Testing Platform v2026.07.beta[/bold cyan]
+[bold cyan]      Enterprise AI-Powered Penetration Testing Platform v2026.07.beta.3[/bold cyan]
 [bold green]        Production-Ready | Cloud-Native | AI-Enhanced[/bold green]
 [dim]                    Advanced Security Assessment Platform[/dim]
 """
@@ -744,7 +744,7 @@ class EnterpriseHackGPT:
         def health_check():
             return jsonify({
                 "status": "healthy",
-                "version": "2026.07.beta",
+                "version": "2026.07.beta.3",
                 "timestamp": datetime.utcnow().isoformat()
             })
 

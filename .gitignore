@@ -17,3 +17,8 @@ logs/
 # Virtual environments
 venv/
 .venv/
+
+# Databases
+*.db
+database/*.db
+

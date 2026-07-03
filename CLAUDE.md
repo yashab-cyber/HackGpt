@@ -22,7 +22,7 @@ When fixing a bug, determine which entry point the user means — logic is often
 | Package | Getter / key exports | Responsibility |
 |---|---|---|
 | `database/` | `get_db_manager`, `PentestSession`, `Vulnerability`, `User`, `AuditLog` | SQLAlchemy models + PostgreSQL persistence |
-| `ai_engine/` | `get_advanced_ai_engine`, `AdvancedAIEngine`, `PatternRecognizer`, `VulnerabilityCorrelator` | LLM + ML analysis, zero-day correlation |
+| `ai_engine/` | `get_advanced_ai_engine`, `AdvancedAIEngine`, `PatternRecognizer`, `VulnerabilityCorrelator`, `ModelProvider`, `ModelInfo`, `MODEL_CATALOG`, `ProviderFactory` | Multi-provider AI (OpenAI, Anthropic, Google, DeepSeek, GLM, OpenRouter, Ollama) + ML analysis, zero-day correlation, runtime model switching |
 | `security/` | `EnterpriseAuth`, `ComplianceFrameworkMapper` | RBAC/LDAP auth, OWASP/NIST/ISO27001/SOC2/PCI-DSS mapping |
 | `exploitation/` | `AdvancedExploitationEngine`, `ZeroDayDetector` | Exploit orchestration, behavioral zero-day detection |
 | `reporting/` | `DynamicReportGenerator`, `get_realtime_dashboard` | HTML/PDF/JSON reports, live WebSocket dashboard |

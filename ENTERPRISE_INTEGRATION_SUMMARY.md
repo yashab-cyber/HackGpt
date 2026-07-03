@@ -58,7 +58,7 @@
 - [app] - Application settings with production defaults
 - [database] - PostgreSQL with connection pooling
 - [cache] - Redis multi-layer caching configuration  
-- [ai] - OpenAI + local LLM with ML settings
+- [ai] - Multi-provider AI (OpenAI, Anthropic, Google, DeepSeek, GLM, OpenRouter, Ollama) with ML settings
 - [security] - JWT, encryption, rate limiting
 - [ldap] - Active Directory integration
 - [rbac] - Role-based access control matrix
@@ -71,7 +71,7 @@
 #### 5. **.env.example** (100+ environment variables)
 **Enterprise Environment Configuration:**
 - Database connection strings
-- AI service API keys (OpenAI, local LLM)
+- AI service API keys (OpenAI, Anthropic, Google, DeepSeek, GLM, OpenRouter, local LLM)
 - Security keys and certificates
 - LDAP/AD authentication settings
 - Cloud provider credentials (AWS, Azure, GCP)
@@ -103,11 +103,12 @@
 - Session persistence and audit logging
 - Backup and recovery mechanisms
 
-#### **Improvement 2: Advanced AI Engine** ✅  
+#### **Improvement 2: Advanced AI Engine — Multi-Provider** ✅  
+- 7 AI providers with 26+ models: OpenAI (GPT-5, o3), Anthropic (Claude Sonnet 5, Opus 4.8), Google (Gemini 3.5 Flash, 3.1 Pro), DeepSeek (R1, V3), GLM (5.2), OpenRouter, Ollama
+- Runtime model switching with automatic provider fallback
 - ML-powered vulnerability correlation
 - Behavioral anomaly detection
 - Zero-day pattern recognition
-- Local LLM fallback with Ollama integration
 
 #### **Improvement 3: Enhanced Security & Compliance** ✅
 - Enterprise authentication with RBAC + LDAP

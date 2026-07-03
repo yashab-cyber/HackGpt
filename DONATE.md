@@ -4,7 +4,7 @@
 
 # 💰 Support HackGPT Enterprise Development
 
-![Version](https://img.shields.io/badge/version-2026.07.beta-green.svg)
+![Version](https://img.shields.io/badge/version-2026.07.beta.3-green.svg)
 ![Donations](https://img.shields.io/badge/donations-welcome-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 

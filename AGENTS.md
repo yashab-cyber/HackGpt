@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-HackGPT is primarily a Python security assessment platform. Core entry points live at `advance_hackgpt.py`, `advance_hackgpt.py`, and `demo.py`. Feature modules are grouped by domain: `ai_engine/`, `cloud/`, `database/`, `exploitation/`, `performance/`, `reporting/`, and `security/`. Tests live under `tests/`, with current unit tests in `tests/unit/`; shared pytest setup is in both root `conftest.py` and `tests/conftest.py`. Infrastructure and runtime assets are in `Dockerfile`, `docker-compose.yml`, `nginx/`, `redis/`, `monitoring/`, `database/init.sql`, and `public/`. The `alpha/` directory contains prototype Node stubs and should be treated separately from the Python application.
+HackGPT is primarily a Python security assessment platform. Core entry points live at `advance_hackgpt.py`, `advance_hackgpt.py`, and `demo.py`. Feature modules are grouped by domain: `ai_engine/` (multi-provider AI with model registry and provider clients), `cloud/`, `database/`, `exploitation/`, `performance/`, `reporting/`, and `security/`. Tests live under `tests/`, with current unit tests in `tests/unit/`; shared pytest setup is in both root `conftest.py` and `tests/conftest.py`. Infrastructure and runtime assets are in `Dockerfile`, `docker-compose.yml`, `nginx/`, `redis/`, `monitoring/`, `database/init.sql`, and `public/`. The `alpha/` directory contains prototype Node stubs and should be treated separately from the Python application.
 
 ## Build, Test, and Development Commands
 Create an isolated Python environment, then install dependencies:

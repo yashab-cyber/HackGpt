@@ -63,8 +63,8 @@ _internal = {
         "Vulnerability",
         "User",
         "AuditLog",
+        "AIContext",
     ],
-    "ai_engine": ["get_advanced_ai_engine"],
     "security": ["EnterpriseAuth", "ComplianceFrameworkMapper"],
     "exploitation": ["AdvancedExploitationEngine", "ZeroDayDetector"],
     "reporting": ["DynamicReportGenerator", "get_realtime_dashboard"],
@@ -75,3 +75,4 @@ for pkg, names in _internal.items():
     mod = _stub(pkg)
     for sym in names:
         setattr(mod, sym, MagicMock())
+

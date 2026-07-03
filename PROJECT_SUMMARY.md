@@ -25,7 +25,7 @@ HackGPT/
 ## 🚀 Key Features Implemented
 
 ### 1. AI-Powered Intelligence
-- **Dual AI Mode**: OpenAI API (online) + Local LLM (offline)
+- **Multi-Provider AI**: 7 providers (OpenAI, Anthropic, Google Gemini, DeepSeek, GLM, Ollama, OpenRouter) with 26+ models
 - **Intelligent Analysis**: Context-aware vulnerability assessment
 - **Smart Recommendations**: AI suggests optimal tools and next steps
 - **Report Generation**: AI creates both technical and executive reports
@@ -65,7 +65,7 @@ HackGPT/
 ## 🛠️ Technical Implementation
 
 ### Core Classes
-1. **AIEngine**: Manages OpenAI API and local LLM (ollama)
+1. **AdvancedAIEngine**: Multi-provider AI with runtime model switching (OpenAI, Anthropic, Google, DeepSeek, GLM, Ollama, OpenRouter)
 2. **ToolManager**: Handles tool installation and execution
 3. **PentestingPhases**: Implements 6-phase methodology
 4. **VoiceInterface**: Speech recognition and TTS
@@ -75,8 +75,11 @@ HackGPT/
 ### Key Technologies
 - **Python 3.8+**: Core language
 - **Rich**: Terminal UI and formatting
-- **OpenAI**: GPT API integration
-- **Ollama**: Local LLM support
+- **OpenAI**: GPT-5, GPT-5.6, o3, o4-mini integration
+- **Anthropic**: Claude Sonnet 5, Opus 4.8, Haiku 3.5
+- **Google**: Gemini 3.5 Flash, 3.1 Pro, 2.5 Pro/Flash
+- **DeepSeek / GLM / OpenRouter**: Additional AI providers
+- **Ollama**: Local LLM support (LLaMA, Mistral, Qwen, Phi)
 - **Flask**: Web dashboard
 - **Speech Recognition**: Voice commands
 - **Pypandoc**: Report generation

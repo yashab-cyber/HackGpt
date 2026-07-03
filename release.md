@@ -1,49 +1,59 @@
-# 🚀 HackGPT Enterprise Release Notes — Version 2026.07.beta
+# 🚀 HackGPT Enterprise Release Notes — Version 2026.07.beta.3
 
-We are excited to announce the release of **HackGPT Enterprise Version 2026.07.beta**! This release marks a significant milestone in turning HackGPT into a production-ready, highly interactive, and visually stunning AI-powered penetration testing automation platform.
-
----
-
-## 🌟 What's New in Version 2026.07.beta
-
-### 1. Unified Core Codebase (`advance_hackgpt.py`)
-- Removed the legacy `hackgpt.py` and `hackgpt_v2.py` in favor of a single, optimized entry point: [advance_hackgpt.py](file:///root/HackGpt/advance_hackgpt.py).
-- Improved CLI experience with custom rich text formatting and high-performance argument handling.
-
-### 2. Beautiful Enterprise Web GUI Dashboard
-- Built a gorgeous, responsive, glassmorphic dashboard in [templates/dashboard.html](file:///root/HackGpt/templates/dashboard.html) and [static/css/style.css](file:///root/HackGpt/static/css/style.css).
-- **Tabbed Interface**: Switch seamlessly between **Dashboard**, **New Assessment**, **Findings**, **Compliance Mapping**, and the **Live Console**.
-- **Interactive Analytics**: Embedded dynamic Chart.js widgets tracking vulnerability breakdown (Critical, High, Medium, Low) and historical scan results.
-- **Detailed Finding Inspector**: An interactive modal popup that allows security analysts to drill down into vulnerability summaries, CVSS 3.1 scores, generated PoC exploits, and actionable remediation steps.
-
-### 3. Integrated Static Portfolio Website
-- Created a fully responsive showcase website under the `website/` directory featuring a simulated terminal console, details on core features, and links to author profiles.
-- Integrated automated site deployment through GitHub Actions workflow at [.github/workflows/deploy-website.yml](file:///root/HackGpt/.github/workflows/deploy-website.yml).
-
-### 4. Database Layer & Threading Optimizations
-- Refactored [database/manager.py](file:///root/HackGpt/database/manager.py) to prevent transaction deadlocks when writing phase results in SQLite during multi-threaded scans.
-- Added comprehensive session status updates (`get_recent_sessions`, `create_pentest_session`, `update_session_status`).
-
-### 5. Automated Tests and Health Check API
-- Added [tests/unit/test_web_dashboard.py](file:///root/HackGpt/tests/unit/test_web_dashboard.py) verifying GUI initialization, custom configuration values, and the Flask REST API.
-- Introduced `/api/health` endpoint returning server health, version `2026.07.beta`, and current timestamp.
+We are excited to announce the release of **HackGPT Enterprise Version 2026.07.beta.3**! This release introduces multi-provider AI model support, runtime model switching, automatic provider fallback, and a comprehensive model catalog of 26+ advanced AI models.
 
 ---
 
-## 🛠️ Installation & Usage
+## 🌟 What's New in Version 2026.07.beta.3
 
-1. **Install dependencies**:
+### 1. Multi-Provider AI Model Engine
+* **Expanded Provider Ecosystem**: Integrated 7 key AI providers under a unified abstract client interface (`BaseProvider`):
+  * **OpenAI**: Support for next-generation reasoning and multimodal models including `gpt-5`, `gpt-5.6`, `o3`, `o4-mini`, `gpt-4o`, and `gpt-4o-mini`.
+  * **Anthropic**: Support for `claude-sonnet-5` (`claude-sonnet-4-20250514`), `claude-opus-4.8` (`claude-opus-4-20250918`), and `claude-haiku-3.5`. Calls the Messages API directly via raw REST request layer.
+  * **Google Gemini**: Support for `gemini-3.5-flash`, `gemini-3.1-pro`, `gemini-2.5-pro`, and `gemini-2.5-flash` with massive 1M-2M token context windows.
+  * **DeepSeek**: Support for `deepseek-r1` (reasoning with CoT) and `deepseek-v3` (`deepseek-chat`) via custom OpenAI-compatible client.
+  * **GLM (Zhipu)**: Support for bilingual language models `glm-5.2` and `glm-4-plus`.
+  * **Local LLMs (Ollama)**: Offline capabilities for local models including `llama3.3:70b`, `llama3.2:3b`, `mistral:7b`, `codellama:13b`, `qwen2.5:32b`, `deepseek-r1:14b`, and `phi-4:14b`.
+  * **OpenRouter**: Access to 100+ public models through the OpenRouter aggregator using the `openrouter/auto` ID.
+
+### 2. Runtime Model Switching & Fallback Chain
+* **On-the-fly Switch**: Added `engine.set_model(model_id)` to let developers change models programmatically or dynamically during assessments.
+* **Provider Fallback**: A three-tier fallback chain ensures high-availability during assessments:
+  1. Selected model provider API
+  2. Direct OpenAI API key fallback (if `OPENAI_API_KEY` is present)
+  3. Local offline models (Hugging Face / Ollama) as the ultimate fail-safe
+
+### 3. Centralized Model Registry & Client Factory
+* Introduced `ai_engine/model_registry.py` managing the complete `MODEL_CATALOG` with token limits, tool-calling capabilities, and provider metadata.
+* Introduced `ai_engine/providers.py` hosting concrete client classes and `ProviderFactory` for lazy instantiation and caching.
+
+### 4. Robust AI Provider Unit Tests & Pathing
+* Added `tests/unit/test_ai_providers.py` checking catalog completeness, metadata queries, and API key environment checks.
+* Modified the root `conftest.py` testing configuration to allow importing real submodules from the `ai_engine` package during unit runs while keeping external database connections fully isolated.
+
+---
+
+## 🛠️ Quick Start with version 2026.07.beta.3
+
+1. **Configure Environment**:
+   Copy `.env.example` to `.env` and provide your API keys:
    ```bash
-   pip install -r requirements-dev.txt
+   HACKGPT_MODEL=gpt-5
+   ANTHROPIC_API_KEY=your_key
+   GOOGLE_API_KEY=your_key
+   DEEPSEEK_API_KEY=your_key
    ```
-2. **Start the Web Dashboard**:
+
+2. **Select Model in Code**:
+   ```python
+   from ai_engine import get_advanced_ai_engine
+   
+   # Initialize with Claude Sonnet 5
+   engine = get_advanced_ai_engine(model_id='claude-sonnet-5')
+   ```
+
+3. **Verify Installation**:
    ```bash
-   python advance_hackgpt.py --web
+   pytest tests/unit/ -v
+   python3 test_installation.py
    ```
-3. **Open the browser**:
-   Navigate to `http://localhost:8080` to access the enterprise GUI.
-
----
-
-## 🔒 Security Policy
-This platform is designed for authorized penetration testing and cybersecurity research only. Do not deploy or scan targets without prior written consent.
