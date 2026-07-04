@@ -36,6 +36,13 @@
 - **Risk Intelligence**: CVSS scoring, impact assessment, exploit prioritization
 - **Automated Reporting**: Executive summaries, technical details, compliance mapping
 
+### 🛡️ Advanced SOC Analysis & SIEM Integration
+- **Advanced SOC Engine**: Multi-format log parser/normalizer, IOC extraction, MITRE ATT&CK technique mapping
+- **Sliding-Window Correlation**: Real-time event grouping, deduplication, and multi-stage attack timeline reconstruction
+- **Statistical Anomalies**: Z-score volume profiling, off-hours execution, and IP/host diversity tracking
+- **Incident Response Playbooks**: AI-driven IR response guidelines customized per attack vector
+- **SIEM Connectors**: Native connectors for Splunk (HEC & searches), IBM QRadar (Ariel AQL), Elasticsearch, and customizable Webhooks
+
 ### 🛡️ Enterprise Security & Compliance
 - **Authentication**: RBAC + LDAP/Active Directory integration
 - **Authorization**: Role-based permissions (Admin, Lead, Senior, Pentester, Analyst)
@@ -155,6 +162,7 @@ graph TD
     B --> D[AI Engine Service] 
     B --> E[Exploitation Service]
     B --> F[Reporting Service]
+    B --> SOC[SOC Analysis Service]
     
     C --> G[LDAP/AD]
     D --> H[OpenAI API]
@@ -168,6 +176,11 @@ graph TD
     
     E --> K[Parallel Processor]
     F --> L[Report Generator]
+    
+    SOC --> S1[Splunk HEC/Search API]
+    SOC --> S2[IBM QRadar Ariel API]
+    SOC --> S3[Elasticsearch Query DSL]
+    SOC --> S4[Webhook Alerts]
     
     K --> M[Celery Workers]
     M --> N[Redis Queue]
@@ -184,6 +197,7 @@ graph TD
 | Service | Purpose | Port | Technology |
 |---------|---------|------|------------|
 | **hackgpt-app** | Main application | 8000, 8080 | Python/Flask |
+| **hackgpt-soc** | SOC & SIEM Correlation Engine | - | Python / Log Normalizer |
 | **hackgpt-worker** | Background tasks | - | Celery |
 | **hackgpt-database** | Data persistence | 5432 | PostgreSQL 15 |
 | **hackgpt-redis** | Cache & queues | 6379 | Redis 7 |
