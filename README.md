@@ -13,7 +13,7 @@
   <p>
     <img src="https://img.shields.io/badge/Architecture-Microservices-red.svg" alt="Microservices">
     <img src="https://img.shields.io/badge/Cloud-Docker%20%7C%20Kubernetes-lightblue.svg" alt="Cloud Native">
-    <img src="https://img.shields.io/badge/Version-2026.07.beta.3-success.svg" alt="Version 2026.07.beta.3">
+    <img src="https://img.shields.io/badge/Version-2026.07.beta.4-success.svg" alt="Version 2026.07.beta.4">
     <img src="https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg" alt="Production Ready">
   </p>
 </div>
