@@ -7,7 +7,7 @@ Handles database connections, migrations, and operations
 
 import os
 import logging
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, func
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError
 from contextlib import contextmanager
@@ -63,6 +63,10 @@ class DatabaseManager:
         except Exception as e:
             self.logger.error(f"Database connection failed: {e}")
             return False
+    
+    def get_connection(self):
+        """Get a raw database connection (caller must close it)"""
+        return self.engine.connect()
     
     # Session management
     def create_pentest_session(self, target: str, scope: str, created_by: str, auth_key: str, assessment_type: str = "black-box") -> str:

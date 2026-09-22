@@ -11,7 +11,7 @@ DeepSeek, GLM (Zhipu), Ollama (local), and OpenRouter.
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 # Third-party imports — wrapped so the module loads even when
 # optional dependencies are missing.

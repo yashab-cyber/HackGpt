@@ -14,7 +14,10 @@ from datetime import datetime
 from threading import Lock, Thread
 from concurrent.futures import ThreadPoolExecutor, Future
 import queue
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 @dataclass
 class Worker:
@@ -191,8 +194,8 @@ class LoadBalancer:
                 "inactive_workers": len(self.workers) - active_count,
                 "total_load": total_load,
                 "average_response_time": avg_response_time,
-                "system_cpu_percent": psutil.cpu_percent(),
-                "system_memory_percent": psutil.virtual_memory().percent,
+                "system_cpu_percent": psutil.cpu_percent() if psutil else 0.0,
+                "system_memory_percent": psutil.virtual_memory().percent if psutil else 0.0,
                 "workers": [
                     {
                         "worker_id": w.worker_id,

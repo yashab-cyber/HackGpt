@@ -7,14 +7,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 HackGPT is an AI-powered penetration-testing automation platform (Python). It is **authorized-use security tooling**: it orchestrates real offensive tools (nmap, sqlmap, hydra, metasploit, etc.) driven by an LLM through a structured 6-phase pentest methodology. Treat changes here as security-sensitive.
 
-## Two entry points — they are separate, not layered
+## Single Entry Point
 
-There are **two independent CLI applications** that do not import each other:
+There is **one main CLI application**:
 
-- **`advance_hackgpt.py`** (v1) — self-contained single file. Classes: `HackGPT`, `AIEngine`, `ToolManager`, `PentestingPhases`, `VoiceInterface`, `WebDashboard`. This is what the `ci.yml` workflow imports/tests and what `install.sh` symlinks to `/usr/local/bin/hackgpt`.
-- **`advance_hackgpt.py`** (v2, "Enterprise") — the actively-developed version. Classes: `EnterpriseHackGPT`, `EnterpriseToolManager`, `EnterprisePentestingPhases`, etc. Unlike v1, it depends on the seven internal packages (below). `docker-compose`, the README deployment instructions, and `enterprise-ci.yml` target v2.
+- **`advance_hackgpt.py`** — The actively-developed "Enterprise" version. Classes: `EnterpriseHackGPT`, `EnterpriseToolManager`, `EnterprisePentestingPhases`, etc. It depends on the seven internal packages (below). `docker-compose`, the README deployment instructions, and `enterprise-ci.yml` target it.
 
-When fixing a bug, determine which entry point the user means — logic is often duplicated across both files (each is ~44 KB). A change in one does **not** propagate to the other.
+When fixing bugs, always target `advance_hackgpt.py` and its related packages.
 
 ## Architecture (v2)
 

@@ -12,7 +12,7 @@ import subprocess
 import time
 import tempfile
 from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import yaml
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -29,9 +29,9 @@ except ImportError:
 class ContainerConfig:
     name: str
     image: str
-    ports: Dict[str, int]
-    volumes: Dict[str, str]
-    environment: Dict[str, str]
+    ports: Dict[str, Any] = field(default_factory=dict)
+    volumes: Dict[str, str] = field(default_factory=dict)
+    environment: Dict[str, str] = field(default_factory=dict)
     command: Optional[str] = None
     working_dir: Optional[str] = None
     network: Optional[str] = None

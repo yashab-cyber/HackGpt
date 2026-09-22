@@ -10,7 +10,10 @@ import time
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 @dataclass
 class OptimizationRule:
@@ -105,6 +108,8 @@ class ResourceOptimizer:
         
     def optimize_memory_usage(self) -> Dict[str, Any]:
         """Analyze and optimize memory usage"""
+        if psutil is None:
+            return {"error": "psutil not available", "optimizations_applied": []}
         memory = psutil.virtual_memory()
         
         optimization = {
@@ -144,6 +149,8 @@ class ResourceOptimizer:
         
     def optimize_cpu_usage(self) -> Dict[str, Any]:
         """Analyze and optimize CPU usage"""
+        if psutil is None:
+            return {"error": "psutil not available", "optimizations_applied": []}
         cpu_percent = psutil.cpu_percent(interval=1)
         
         optimization = {
@@ -165,6 +172,8 @@ class ResourceOptimizer:
         
     def optimize_disk_usage(self) -> Dict[str, Any]:
         """Analyze and optimize disk usage"""
+        if psutil is None:
+            return {"error": "psutil not available", "optimizations_applied": []}
         disk = psutil.disk_usage('/')
         disk_percent = (disk.used / disk.total) * 100
         
@@ -195,6 +204,8 @@ class ResourceOptimizer:
         
     def get_optimization_recommendations(self) -> List[Dict[str, Any]]:
         """Get system optimization recommendations"""
+        if psutil is None:
+            return []
         recommendations = []
         
         # Memory recommendations

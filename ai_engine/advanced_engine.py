@@ -487,6 +487,11 @@ class AdvancedAIEngine:
     
     def _setup_local_models(self):
         """Setup local AI models"""
+        if pipeline is None:
+            self.logger.info("Hugging Face transformers pipeline not available; local model setup skipped")
+            self.local_analyzer = None
+            return
+
         try:
             # Try to use a local model or Hugging Face transformers
             self.local_analyzer = pipeline(

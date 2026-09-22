@@ -260,8 +260,9 @@ class Worker:
             # Thread is still running, timeout occurred
             raise TimeoutError(f"Task execution timeout after {timeout} seconds")
         
-        if exception[0]:
-            raise exception[0]
+        err = exception[0]
+        if err is not None:
+            raise err
         
         return result[0]
     

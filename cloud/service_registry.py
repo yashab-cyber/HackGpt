@@ -14,8 +14,12 @@ import hashlib
 from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
-import asyncio
-import aiohttp
+try:
+    import aiohttp
+    AIOHTTP_AVAILABLE = True
+except ImportError:
+    aiohttp = None
+    AIOHTTP_AVAILABLE = False
 from concurrent.futures import ThreadPoolExecutor
 
 try:

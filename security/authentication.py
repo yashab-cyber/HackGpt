@@ -6,9 +6,18 @@ Enterprise-grade authentication, RBAC, and audit logging
 """
 
 import os
-import jwt
-import bcrypt
-import ldap3
+try:
+    import jwt
+except ImportError:
+    jwt = None
+try:
+    import bcrypt
+except ImportError:
+    bcrypt = None
+try:
+    import ldap3
+except ImportError:
+    ldap3 = None
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -18,7 +27,11 @@ from enum import Enum
 import secrets
 import hashlib
 from functools import wraps
-from flask import request, jsonify
+try:
+    from flask import request, jsonify
+except ImportError:
+    request = None
+    jsonify = None
 
 from database import get_db_manager, User, AuditLog
 
@@ -294,6 +307,12 @@ class LDAPAuthenticator:
     
     def authenticate(self, username: str, password: str) -> AuthResult:
         """Authenticate user against LDAP"""
+        if ldap3 is None:
+            return AuthResult(
+                success=False, user_id=None, username=username,
+                role=None, permissions=[], token=None,
+                error_message="ldap3 library not installed"
+            )
         try:
             # Create LDAP connection
             server = ldap3.Server(self.server_url, get_info=ldap3.ALL)
@@ -397,6 +416,9 @@ class LocalAuthenticator:
     
     def authenticate(self, username: str, password: str) -> AuthResult:
         """Authenticate user against local database"""
+        if bcrypt is None or jwt is None:
+            return AuthResult(False, None, None, None, [], None,
+                              "bcrypt and/or jwt libraries not installed")
         try:
             user = self.db.get_user_by_username(username)
             

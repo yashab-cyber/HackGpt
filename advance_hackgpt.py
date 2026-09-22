@@ -773,6 +773,111 @@ class EnterpriseHackGPT:
         else:
             self.console.print("[red]✗ Failed to deploy HackGPT Enterprise Stack[/red]")
     
+    def manage_kubernetes(self):
+        """Manage Kubernetes cluster and resources"""
+        if not hasattr(self, 'k8s_manager') or not self.k8s_manager:
+            self.console.print("[red]Kubernetes manager not available[/red]")
+            return
+        
+        if not self.k8s_manager.is_kubernetes_available():
+            self.console.print("[yellow]Kubernetes cluster not connected. Check your kubeconfig.[/yellow]")
+            return
+        
+        try:
+            k8s_table = Table(title="Kubernetes Cluster Status")
+            k8s_table.add_column("Resource", style="cyan")
+            k8s_table.add_column("Count", style="green")
+            k8s_table.add_column("Status", style="yellow")
+            
+            # List namespaces
+            namespaces = self.k8s_manager.v1.list_namespace()
+            k8s_table.add_row("Namespaces", str(len(namespaces.items)), "Active")
+            
+            # List pods in hackgpt namespace
+            try:
+                pods = self.k8s_manager.v1.list_namespaced_pod(self.k8s_manager.namespace)
+                running = sum(1 for p in pods.items if p.status.phase == "Running")
+                k8s_table.add_row("Pods (hackgpt)", f"{running}/{len(pods.items)}", "Running")
+            except Exception:
+                k8s_table.add_row("Pods (hackgpt)", "N/A", "Namespace not found")
+            
+            self.console.print(k8s_table)
+        except Exception as e:
+            self.console.print(f"[red]Error querying Kubernetes: {e}[/red]")
+    
+    def show_service_registry_status(self):
+        """Show service registry status and registered services"""
+        if not hasattr(self, 'service_registry') or not self.service_registry:
+            self.console.print("[red]Service registry not available[/red]")
+            return
+        
+        registry_table = Table(title="Service Registry Status")
+        registry_table.add_column("Property", style="cyan")
+        registry_table.add_column("Value", style="green")
+        
+        registry_table.add_row("Backend", self.service_registry.backend)
+        registry_table.add_row("Running", str(self.service_registry.running))
+        registry_table.add_row("Registered Services", str(len(self.service_registry.services)))
+        
+        self.console.print(registry_table)
+        
+        if self.service_registry.services:
+            svc_table = Table(title="Registered Services")
+            svc_table.add_column("Service", style="cyan")
+            svc_table.add_column("Host", style="yellow")
+            svc_table.add_column("Port", style="green")
+            svc_table.add_column("Status", style="white")
+            
+            for svc_name, instances in self.service_registry.services.items():
+                if isinstance(instances, list):
+                    for inst in instances:
+                        svc_table.add_row(svc_name, getattr(inst, 'host', 'N/A'),
+                                         str(getattr(inst, 'port', 'N/A')),
+                                         getattr(inst, 'status', 'unknown'))
+                else:
+                    svc_table.add_row(svc_name, "—", "—", "registered")
+            
+            self.console.print(svc_table)
+        else:
+            self.console.print("[yellow]No services currently registered[/yellow]")
+    
+    def scale_services(self):
+        """Scale Docker or Kubernetes services"""
+        scale_options = []
+        
+        if hasattr(self, 'docker_manager') and self.docker_manager:
+            scale_options.append(("1", "Scale Docker services"))
+        if hasattr(self, 'k8s_manager') and self.k8s_manager:
+            scale_options.append(("2", "Scale Kubernetes deployments"))
+        scale_options.append(("0", "Return"))
+        
+        if len(scale_options) == 1:
+            self.console.print("[red]No scaling backends available (Docker/Kubernetes not configured)[/red]")
+            return
+        
+        scale_table = Table(title="Service Scaling")
+        scale_table.add_column("Option", style="cyan")
+        scale_table.add_column("Description", style="white")
+        for opt, desc in scale_options:
+            scale_table.add_row(opt, desc)
+        self.console.print(scale_table)
+        
+        choice = Prompt.ask("[cyan]Select option[/cyan]",
+                           choices=[opt[0] for opt in scale_options])
+        
+        if choice == "0":
+            return
+        elif choice == "1":
+            self.console.print("[yellow]Docker replica scaling via API not currently supported. Use docker-compose up --scale.[/yellow]")
+        elif choice == "2":
+            deployment = Prompt.ask("[cyan]Deployment name[/cyan]", default="hackgpt-api")
+            replicas = Prompt.ask("[cyan]Number of replicas[/cyan]", default="2")
+            try:
+                self.k8s_manager.scale_deployment(deployment, int(replicas), self.k8s_manager.namespace)
+                self.console.print(f"[green]✓ Scaled {deployment} to {replicas} replicas[/green]")
+            except Exception as e:
+                self.console.print(f"[red]Scaling failed: {e}[/red]")
+    
     def start_api_server(self):
         """Start HackGPT API server"""
         if not flask:

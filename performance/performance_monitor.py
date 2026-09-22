@@ -5,7 +5,10 @@ Performance Monitor for HackGPT Enterprise
 Monitors system and application performance metrics
 """
 
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 import time
 import logging
 from typing import Dict, Any, List, Optional
@@ -64,6 +67,8 @@ class PerformanceMonitor:
                 
     def _collect_system_metrics(self) -> None:
         """Collect system performance metrics"""
+        if psutil is None:
+            return
         timestamp = datetime.now()
         
         # CPU metrics

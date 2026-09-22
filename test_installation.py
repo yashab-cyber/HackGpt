@@ -9,7 +9,16 @@ import os
 import sys
 import subprocess
 import importlib
+import shutil
 from pathlib import Path
+
+# Ensure Unicode output works on Windows consoles (cp1252, etc.)
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 def test_python_dependencies():
     """Test if all Python dependencies are installed"""
@@ -42,8 +51,7 @@ def test_system_tools():
     
     missing = []
     for tool in required_tools:
-        result = subprocess.run(['which', tool], capture_output=True, text=True)
-        if result.returncode == 0:
+        if shutil.which(tool):
             print(f"  ✅ {tool}")
         else:
             missing.append(tool)
@@ -56,8 +64,7 @@ def test_ollama():
     print("\n🤖 Testing local AI (Ollama)...")
     
     # Check if ollama is installed
-    result = subprocess.run(['which', 'ollama'], capture_output=True, text=True)
-    if result.returncode != 0:
+    if not shutil.which('ollama'):
         print("  ❌ Ollama not installed")
         return False, ["ollama"]
     
@@ -76,8 +83,10 @@ def test_permissions():
     """Test if required directories and permissions are set"""
     print("\n📁 Testing permissions...")
     
-    # Test reports directory
-    reports_dir = Path('/reports') if Path('/reports').exists() else Path('./reports')
+    # Test reports directory — prefer local ./reports on all platforms
+    reports_dir = Path('./reports')
+    if sys.platform != "win32" and Path('/reports').exists():
+        reports_dir = Path('/reports')
     try:
         reports_dir.mkdir(parents=True, exist_ok=True)
     except (OSError, PermissionError):
@@ -89,13 +98,14 @@ def test_permissions():
         print(f"  ❌ {reports_dir} directory not writable")
         reports_ok = False
     
-    # Test advance_hackgpt.py executable
+    # Test advance_hackgpt.py exists and is readable
     hackgpt_path = Path('./advance_hackgpt.py')
-    if hackgpt_path.exists() and os.access(hackgpt_path, os.X_OK):
-        print("  ✅ advance_hackgpt.py is executable")
+    if hackgpt_path.exists() and os.access(hackgpt_path, os.R_OK):
+        # On Windows, .py files are not marked executable; existence + readable is sufficient
+        print("  ✅ advance_hackgpt.py is accessible")
         script_ok = True
     else:
-        print("  ❌ advance_hackgpt.py not executable")
+        print("  ❌ advance_hackgpt.py not found or not readable")
         script_ok = False
     
     return reports_ok and script_ok, []

@@ -352,8 +352,14 @@ class MicroserviceBase(ABC):
         db_healthy = True
         try:
             if self.db:
-                # Simple database health check
-                self.db.get_connection()
+                if hasattr(self.db, "test_connection"):
+                    db_healthy = self.db.test_connection()
+                elif hasattr(self.db, "get_connection"):
+                    conn = self.db.get_connection()
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
         except Exception:
             db_healthy = False
         
