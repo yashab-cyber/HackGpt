@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .engine import validate_url
+from .engine import Cancelled, validate_url
 from .execution_contracts import ExecutionDeclaration
 from .execution_receipts import EXECUTION_RECEIPT_SCHEMA, normalize_execution_receipt
 from .project_adapter import ProjectMetadataAdapter, ProjectScanPolicy
@@ -285,12 +285,16 @@ class ExecutionRegistry:
     def _web(
         self, request: dict[str, Any], *, cancel=None, web_reader=None
     ) -> dict[str, Any]:
+        """Run the bounded web adapter and normalize engine cancellation semantics."""
         adapter = self._web_adapter(request)
         if cancel is not None and cancel.is_set():
             raise InterruptedError("adapter execution cancelled before start")
-        return adapter.run(
-            request["target"],
-            asset_key=request["asset_key"],
-            cancel=cancel,
-            reader=web_reader,
-        )
+        try:
+            return adapter.run(
+                request["target"],
+                asset_key=request["asset_key"],
+                cancel=cancel,
+                reader=web_reader,
+            )
+        except Cancelled as exc:
+            raise InterruptedError("adapter execution cancelled") from exc

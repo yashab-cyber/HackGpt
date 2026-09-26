@@ -199,6 +199,93 @@ class AdapterParserTests(unittest.TestCase):
         self.assertIsNone(result["coverage"]["objects_tested"])
         self.assertEqual(result["findings"], [])
 
+    def test_semgrep_requires_login_fingerprint_uses_occurrence_location(self):
+        """Use location identity when Semgrep provides no usable fingerprint."""
+        raw = json.dumps(
+            {
+                "results": [
+                    {
+                        "check_id": "rule",
+                        "path": "a.py",
+                        "start": {"line": 1, "col": 1},
+                        "end": {"line": 1, "col": 2},
+                        "extra": {
+                            "message": "A",
+                            "severity": "WARNING",
+                            "fingerprint": "requires login",
+                        },
+                    },
+                    {
+                        "check_id": "rule",
+                        "path": "b.py",
+                        "start": {"line": 1, "col": 1},
+                        "end": {"line": 1, "col": 2},
+                        "extra": {
+                            "message": "B",
+                            "severity": "WARNING",
+                            "fingerprint": "requires login",
+                        },
+                    },
+                ],
+                "paths": {"scanned": ["a.py", "b.py"]},
+                "errors": [],
+            }
+        )
+        result = parse_semgrep_json(raw, version="1", asset_key=ASSET)
+        ids = [finding["external_id"] for finding in result["findings"]]
+        self.assertEqual(len(ids), 2)
+        self.assertEqual(len(set(ids)), 2)
+        self.assertNotIn("requires login", ids)
+
+    def test_trivy_same_vulnerability_in_two_targets_has_distinct_identity(self):
+        """Keep identical Trivy findings distinct across scanner targets."""
+        vulnerability = {
+            "VulnerabilityID": "CVE-TEST",
+            "PkgName": "demo",
+            "InstalledVersion": "1.0",
+            "Severity": "HIGH",
+        }
+        raw = json.dumps(
+            {
+                "Results": [
+                    {
+                        "Target": "a.lock",
+                        "Class": "lang-pkgs",
+                        "Type": "pip",
+                        "Vulnerabilities": [vulnerability],
+                    },
+                    {
+                        "Target": "b.lock",
+                        "Class": "lang-pkgs",
+                        "Type": "pip",
+                        "Vulnerabilities": [vulnerability],
+                    },
+                ]
+            }
+        )
+        result = parse_trivy_json(raw, version="1", asset_key=ASSET)
+        ids = [finding["external_id"] for finding in result["findings"]]
+        self.assertEqual(len(ids), 2)
+        self.assertEqual(len(set(ids)), 2)
+
+    def test_nuclei_same_template_on_two_paths_has_distinct_identity(self):
+        """Keep Nuclei occurrences distinct across matched paths."""
+        base = {
+            "template-id": "tech-detect",
+            "template-url": "https://templates.invalid/tech",
+            "info": {"name": "Technology detection", "severity": "info"},
+            "matcher-name": "wordpress",
+            "type": "http",
+        }
+        raw = "\n".join(
+            json.dumps({**base, "matched-at": matched})
+            for matched in ("https://example.test/a", "https://example.test/b")
+        )
+        result = parse_nuclei_jsonl(raw + "\n", version="3", asset_key=ASSET)
+        ids = [finding["external_id"] for finding in result["findings"]]
+        self.assertEqual(len(ids), 2)
+        self.assertEqual(len(set(ids)), 2)
+
     def test_output_limit_and_utf8_enforced(self):
         with self.assertRaisesRegex(ValueError, "too large"):
             parse_scanner_output(

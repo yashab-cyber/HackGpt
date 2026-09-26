@@ -137,10 +137,18 @@ def parse_semgrep_json(
         evidence = {
             "path": path,
             "start_line": _line(start.get("line")),
+            "start_col": _line(start.get("col")),
             "end_line": _line(end.get("line")),
+            "end_col": _line(end.get("col")),
             "source_snippet_included": False,
             "metavariable_values_included": False,
         }
+        fingerprint = extra.get("fingerprint")
+        if not isinstance(fingerprint, str) or fingerprint.strip().lower() in {
+            "",
+            "requires login",
+        }:
+            fingerprint = None
         findings.append(
             {
                 "rule": check_id,
@@ -150,8 +158,12 @@ def parse_semgrep_json(
                 "evidence": evidence,
                 "remediation": "Review the matched rule at the reported location and confirm the application context before remediation.",
                 "external_id": _text(
-                    extra.get("fingerprint"),
-                    f"{path}:{evidence['start_line'] or 0}:{check_id}",
+                    fingerprint,
+                    (
+                        f"{path}:{evidence['start_line'] or 0}:"
+                        f"{evidence['start_col'] or 0}:{evidence['end_line'] or 0}:"
+                        f"{evidence['end_col'] or 0}:{check_id}"
+                    ),
                     200,
                 ),
             }
@@ -223,9 +235,9 @@ def parse_trivy_json(
                         if evidence["fixed_version"] != "not reported"
                         else "Review vendor/advisory guidance and determine an appropriate patched or mitigated version."
                     ),
-                    "external_id": f"{vuln_id}:{pkg}:{evidence['installed_version']}"[
-                        :200
-                    ],
+                    "external_id": (
+                        f"{target}:{vuln_id}:{pkg}:{evidence['installed_version']}"
+                    )[:200],
                 }
             )
         for misconfig in result.get("Misconfigurations") or []:
@@ -363,7 +375,9 @@ def parse_nuclei_jsonl(
                     1000,
                 ),
                 "external_id": _text(
-                    item.get("template-url"), f"{template_id}:{path or '/'}", 200
+                    None,
+                    f"{template_id}:{evidence['matcher']}:{path or '/'}",
+                    200,
                 ),
             }
         )

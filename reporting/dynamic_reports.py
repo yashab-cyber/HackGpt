@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from io import BytesIO
 import pandas as pd
-from jinja2 import Environment, FileSystemLoader, Template
+from jinja2 import Environment, FileSystemLoader, Template, TemplateNotFound
 
 from database import get_db_manager
 
@@ -606,10 +606,10 @@ class DynamicReportGenerator:
         # Create visualizations
         charts = {}
         if all_vulnerabilities:
-            charts["severity_distribution"] = (
-                self.chart_generator.create_vulnerability_severity_chart(
-                    all_vulnerabilities
-                )
+            charts[
+                "severity_distribution"
+            ] = self.chart_generator.create_vulnerability_severity_chart(
+                all_vulnerabilities
             )
             charts["risk_heatmap"] = self.chart_generator.create_risk_heatmap(
                 all_vulnerabilities
@@ -666,7 +666,9 @@ class DynamicReportGenerator:
                 trend_direction = (
                     "increased"
                     if change_percent > 5
-                    else "decreased" if change_percent < -5 else "remained stable"
+                    else "decreased"
+                    if change_percent < -5
+                    else "remained stable"
                 )
 
                 insights.append(
@@ -677,7 +679,9 @@ class DynamicReportGenerator:
                         "impact": (
                             "high"
                             if abs(change_percent) > 20
-                            else "medium" if abs(change_percent) > 5 else "low"
+                            else "medium"
+                            if abs(change_percent) > 5
+                            else "low"
                         ),
                     }
                 )
@@ -798,14 +802,9 @@ class DynamicReportGenerator:
 
     def generate_technical_report(self, session_data: Dict[str, Any]) -> str:
         """Generate detailed technical report"""
-        template = (
-            self.jinja_env.get_template("technical_report.html")
-            if self.jinja_env.get_template
-            else None
-        )
-
-        if not template:
-            # Return basic text report if template not available
+        try:
+            template = self.jinja_env.get_template("technical_report.html")
+        except TemplateNotFound:
             return self._generate_text_technical_report(session_data)
 
         return template.render(session_data=session_data)

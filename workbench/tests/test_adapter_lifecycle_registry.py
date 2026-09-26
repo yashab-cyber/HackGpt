@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from workbench.adapter_lifecycle import AdapterLifecycle
+from workbench.engine import Cancelled
 from workbench.registry import ExecutionRegistry, RegistryPolicy
 
 
@@ -54,6 +55,36 @@ class RealRegistryLifecycleTests(unittest.TestCase):
             raw = database.read_bytes()
             self.assertNotIn(str(root).encode(), raw)
             self.assertNotIn(b"DO_NOT_READ=this-value", raw)
+
+    def test_native_web_cancelled_reader_persists_cancelled_lifecycle(self):
+        """Persist a cancelled terminal lifecycle when the web reader is cancelled."""
+        with tempfile.TemporaryDirectory() as temp:
+            database = Path(temp) / "state" / "reports.sqlite3"
+            lifecycle = AdapterLifecycle(database, ExecutionRegistry())
+            request = {
+                "target": "https://example.com/",
+                "asset_key": "asset-1",
+                "timeout_seconds": 5,
+            }
+            planned = lifecycle.plan("native-web-headers", request)
+            lifecycle.approve(planned["id"], planned["plan_sha256"])
+
+            def cancelled_reader(_target):
+                """Raise the engine cancellation signal from a synthetic reader."""
+                raise Cancelled()
+
+            with self.assertRaises(InterruptedError):
+                lifecycle.execute(
+                    planned["id"],
+                    "native-web-headers",
+                    request,
+                    web_reader=cancelled_reader,
+                )
+
+            stored = lifecycle.get(planned["id"])
+            self.assertEqual(stored["status"], "cancelled")
+            self.assertEqual(stored["outcome"], {"code": "cancelled"})
+            self.assertIsNone(stored["receipt"])
 
 
 if __name__ == "__main__":
