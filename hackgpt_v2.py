@@ -607,34 +607,41 @@ class EnterpriseHackGPT:
             f"[green]Starting Enterprise Pentest: {target_info['target']}[/green]"
         )
 
-        # Create session in database
+        # Create session in database using the manager's supported contract.
+        created_by = target_info.get("created_by") or "system"
+        session_id = str(uuid.uuid4())
+        session_persisted = False
         if self.db:
-            session = self.db.create_pentest_session(
-                target=target_info["target"],
-                scope=target_info["scope"],
-                assessment_type=target_info["assessment_type"],
-                compliance_framework=target_info["compliance_framework"],
-            )
-            session_id = session.session_id
-        else:
-            session_id = str(uuid.uuid4())
-
-        # Initialize enterprise pentesting phases
-        phases = EnterprisePentestingPhases(
-            session_id=session_id,
-            ai_engine=self.ai_engine,
-            tool_manager=self.tool_manager,
-            target_info=target_info,
-            db=self.db,
-            cache=self.cache,
-            processor=self.processor,
-            exploitation=self.exploitation,
-            zero_day_detector=self.zero_day_detector,
-            compliance=self.compliance,
-            report_generator=self.report_generator,
-        )
+            try:
+                session_id = self.db.create_pentest_session(
+                    target=target_info["target"],
+                    scope=target_info["scope"],
+                    created_by=created_by,
+                    auth_key=target_info["auth_key"],
+                    assessment_type=target_info["assessment_type"],
+                )
+                session_persisted = True
+            except Exception as exc:
+                self.logger.error(f"Could not create pentest session: {exc}")
+                self.console.print("[red]Could not create database session[/red]")
+                return
 
         try:
+            # Initialize enterprise pentesting phases
+            phases = EnterprisePentestingPhases(
+                session_id=session_id,
+                ai_engine=self.ai_engine,
+                tool_manager=self.tool_manager,
+                target_info=target_info,
+                db=self.db,
+                cache=self.cache,
+                processor=self.processor,
+                exploitation=self.exploitation,
+                zero_day_detector=self.zero_day_detector,
+                compliance=self.compliance,
+                report_generator=self.report_generator,
+            )
+
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -642,7 +649,6 @@ class EnterpriseHackGPT:
                 TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                 console=self.console,
             ) as progress:
-
                 # Execute all phases
                 phase_tasks = [
                     (
@@ -668,6 +674,7 @@ class EnterpriseHackGPT:
                     ("Phase 6: Verification & Retesting", phases.phase6_retesting),
                 ]
 
+                failed_phase = None
                 for phase_name, phase_method in phase_tasks:
                     task = progress.add_task(phase_name, total=100)
                     progress.update(task, advance=10)
@@ -675,34 +682,41 @@ class EnterpriseHackGPT:
                     result = phase_method()
                     progress.update(task, completed=100)
 
-                    if not result.get("success", True):
+                    if (
+                        not isinstance(result, dict)
+                        or result.get("success") is not True
+                    ):
+                        failed_phase = phase_name
                         self.console.print(f"[red]Phase failed: {phase_name}[/red]")
                         break
+
+            if failed_phase is not None:
+                if self.db and session_persisted:
+                    self.db.update_session_status(session_id, "failed", created_by)
+                self.show_pentest_summary(session_id, phases.results)
+                return False
 
             self.console.print(
                 "[bold green]Enterprise Pentest Completed Successfully![/bold green]"
             )
 
-            if self.db:
-                session.status = "completed"
-                session.completed_at = datetime.utcnow()
-                self.db.update_session(session)
+            if self.db and session_persisted:
+                self.db.update_session_status(session_id, "completed", created_by)
 
-            # Show summary
             self.show_pentest_summary(session_id, phases.results)
+            return True
 
         except KeyboardInterrupt:
             self.console.print("[yellow]Pentest interrupted by user[/yellow]")
-            if self.db and session:
-                session.status = "cancelled"
-                self.db.update_session(session)
+            if self.db and session_persisted:
+                self.db.update_session_status(session_id, "cancelled", created_by)
+            return False
         except Exception as e:
             self.logger.error(f"Error during pentest: {e}")
             self.console.print(f"[red]Error during pentest: {e}[/red]")
-            if self.db and session:
-                session.status = "failed"
-                session.error_message = str(e)
-                self.db.update_session(session)
+            if self.db and session_persisted:
+                self.db.update_session_status(session_id, "failed", created_by)
+            return False
 
     def show_pentest_summary(self, session_id: str, results: Dict):
         """Show pentest summary"""
@@ -874,21 +888,26 @@ class EnterpriseHackGPT:
         else:
             self.console.print("[red]✗ Failed to deploy HackGPT Enterprise Stack[/red]")
 
-    def start_api_server(self):
-        """Start HackGPT API server"""
-        if not flask:
-            self.console.print("[red]Flask not available for API server[/red]")
-            return
+    def create_api_app(self):
+        """Build authenticated HTTPS-only API routes without starting a listener."""
+        if not flask or not self.auth:
+            raise RuntimeError("Flask and enterprise authentication are required")
 
         from flask import Flask, request, jsonify
-        from flask_cors import CORS
 
         app = Flask(__name__)
-        CORS(app)
         app.secret_key = config.SECRET_KEY
+        app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
+
+        @app.before_request
+        def require_secure_transport():
+            """Reject cleartext before parsing login data or verifying a token."""
+            if request.endpoint != "health_check" and not request.is_secure:
+                return jsonify({"error": "HTTPS is required"}), 400
 
         @app.route("/api/health", methods=["GET"])
         def health_check():
+            """Return non-sensitive liveness metadata."""
             return jsonify(
                 {
                     "status": "healthy",
@@ -897,34 +916,99 @@ class EnterpriseHackGPT:
                 }
             )
 
+        @app.route("/api/auth/login", methods=["POST"])
+        def login():
+            """Authenticate an API caller and return the existing short-lived JWT."""
+            data = request.get_json(silent=True)
+            if not isinstance(data, dict):
+                return jsonify({"error": "A JSON object is required"}), 400
+            username = data.get("username")
+            password = data.get("password")
+            method = data.get("method", "local")
+            if (
+                not isinstance(username, str)
+                or not 0 < len(username) <= 256
+                or not isinstance(password, str)
+                or not 0 < len(password) <= 4096
+                or not isinstance(method, str)
+            ):
+                return jsonify({"error": "Username and password are required"}), 400
+            result = self.auth.authenticate_user(
+                username,
+                password,
+                method=method,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get("User-Agent"),
+            )
+            if not result.success:
+                return jsonify({"error": "Authentication failed"}), 401
+            return jsonify(
+                {
+                    "token": result.token,
+                    "user_id": result.user_id,
+                    "username": result.username,
+                    "role": result.role,
+                    "permissions": result.permissions,
+                }
+            )
+
         @app.route("/api/pentest/start", methods=["POST"])
+        @self.auth.require_auth
+        @self.auth.require_permission("create_session")
+        @self.auth.require_permission("run_active_scans")
+        @self.auth.require_permission("run_exploitation")
         def start_pentest():
+            """Start an authorized assessment for the authenticated caller."""
             try:
-                data = request.json
+                data = request.get_json(silent=True)
+                if not isinstance(data, dict):
+                    return jsonify({"error": "A JSON object is required"}), 400
+                target = data.get("target")
+                scope = data.get("scope")
+                auth_key = data.get("auth_key")
+                if not all(
+                    isinstance(value, str) and value.strip()
+                    for value in (target, scope, auth_key)
+                ):
+                    return (
+                        jsonify({"error": "target, scope, and auth_key are required"}),
+                        400,
+                    )
                 target_info = {
-                    "target": data.get("target"),
-                    "scope": data.get("scope"),
+                    "target": target.strip(),
+                    "scope": scope.strip(),
                     "assessment_type": data.get("assessment_type", "black-box"),
                     "compliance_framework": data.get("compliance_framework", "OWASP"),
-                    "auth_key": data.get("auth_key"),
+                    "auth_key": auth_key,
                     "parallel_execution": data.get("parallel_execution", True),
                     "ai_enhanced": data.get("ai_enhanced", True),
+                    "created_by": request.user_id,
                 }
 
-                # Start pentest in background
                 thread = threading.Thread(
-                    target=self.run_full_enterprise_pentest, args=(target_info,)
+                    target=self.run_full_enterprise_pentest,
+                    args=(target_info,),
+                    daemon=True,
                 )
                 thread.start()
 
                 return jsonify(
                     {"status": "started", "message": "Enterprise pentest initiated"}
                 )
-            except Exception as e:
-                return jsonify({"status": "error", "message": str(e)}), 500
+            except Exception:
+                self.logger.exception("API pentest start failed")
+                return (
+                    jsonify(
+                        {"status": "error", "message": "Could not start assessment"}
+                    ),
+                    500,
+                )
 
         @app.route("/api/sessions", methods=["GET"])
+        @self.auth.require_auth
+        @self.auth.require_permission("view_session")
         def get_sessions():
+            """List recent sessions for an authenticated caller with view permission."""
             if not self.db:
                 return jsonify({"error": "Database not available"}), 503
 
@@ -932,7 +1016,7 @@ class EnterpriseHackGPT:
             return jsonify(
                 [
                     {
-                        "session_id": s.session_id,
+                        "session_id": s.id,
                         "target": s.target,
                         "status": s.status,
                         "created_at": s.created_at.isoformat(),
@@ -944,10 +1028,33 @@ class EnterpriseHackGPT:
                 ]
             )
 
-        self.console.print(
-            "[cyan]Starting HackGPT API Server on http://0.0.0.0:8000[/cyan]"
+        return app
+
+    def start_api_server(self):
+        """Start a TLS listener only when both configured certificate files load."""
+        import ssl
+
+        cert = os.getenv("HACKGPT_API_TLS_CERT")
+        key = os.getenv("HACKGPT_API_TLS_KEY")
+        if not cert or not key:
+            self.console.print(
+                "[red]Configure HACKGPT_API_TLS_CERT and HACKGPT_API_TLS_KEY before starting the API[/red]"
+            )
+            return False
+        try:
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+            context.load_cert_chain(certfile=cert, keyfile=key)
+            app = self.create_api_app()
+        except (OSError, ssl.SSLError, RuntimeError):
+            self.logger.exception("HTTPS API startup configuration failed")
+            return False
+        host = os.getenv("HACKGPT_API_BIND", "127.0.0.1")
+        self.console.print("[cyan]Starting authenticated HTTPS API on port 8000[/cyan]")
+        app.run(
+            host=host, port=8000, ssl_context=context, debug=False, use_reloader=False
         )
-        app.run(host="0.0.0.0", port=8000, debug=config.DEBUG)
+        return True
 
     def run(self):
         """Main application loop"""

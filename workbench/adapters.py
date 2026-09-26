@@ -8,6 +8,7 @@ finding or execute a scanner.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any, Callable
 from urllib.parse import urlsplit
@@ -46,6 +47,17 @@ def _text(value: Any, fallback: str, maximum: int = MAX_TEXT) -> str:
     return value[:maximum]
 
 
+def _identity_text(value: Any, fallback: str) -> str:
+    """Keep full identity metadata; only presentation fields may be truncated."""
+    return value.strip() if isinstance(value, str) and value.strip() else fallback
+
+
+def _occurrence_id(kind: str, *fields: Any) -> str:
+    """Hash a typed identity tuple without retaining secret scanner payloads."""
+    canonical = json.dumps([kind, *fields], ensure_ascii=True, separators=(",", ":"))
+    return kind + ":" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _line(value: Any) -> int | None:
     if type(value) is int and value > 0:
         return value
@@ -59,7 +71,8 @@ def _severity(value: Any, *, semgrep: bool = False) -> str:
     return text if text in {"info", "low", "medium", "high", "critical"} else "info"
 
 
-def _safe_url_path(value: Any) -> str | None:
+def _safe_url_path(value: Any, maximum: int | None = 1000) -> str | None:
+    """Extract only an HTTP URL path, with optional display-length bounding."""
     if not isinstance(value, str) or not value:
         return None
     try:
@@ -68,7 +81,7 @@ def _safe_url_path(value: Any) -> str | None:
         return None
     if parsed.scheme not in {"http", "https"} or not parsed.path:
         return None
-    return parsed.path[:1000]
+    return parsed.path if maximum is None else parsed.path[:maximum]
 
 
 def _envelope(
@@ -137,10 +150,18 @@ def parse_semgrep_json(
         evidence = {
             "path": path,
             "start_line": _line(start.get("line")),
+            "start_col": _line(start.get("col")),
             "end_line": _line(end.get("line")),
+            "end_col": _line(end.get("col")),
             "source_snippet_included": False,
             "metavariable_values_included": False,
         }
+        fingerprint = extra.get("fingerprint")
+        if not isinstance(fingerprint, str) or fingerprint.strip().lower() in {
+            "",
+            "requires login",
+        }:
+            fingerprint = None
         findings.append(
             {
                 "rule": check_id,
@@ -149,10 +170,15 @@ def parse_semgrep_json(
                 "confidence": 0.5,
                 "evidence": evidence,
                 "remediation": "Review the matched rule at the reported location and confirm the application context before remediation.",
-                "external_id": _text(
-                    extra.get("fingerprint"),
-                    f"{path}:{evidence['start_line'] or 0}:{check_id}",
-                    200,
+                "external_id": _occurrence_id(
+                    "semgrep-v2",
+                    _identity_text(item.get("check_id"), "semgrep/unknown-rule"),
+                    _identity_text(item.get("path"), "unknown"),
+                    evidence["start_line"],
+                    evidence["start_col"],
+                    evidence["end_line"],
+                    evidence["end_col"],
+                    fingerprint,
                 ),
             }
         )
@@ -223,9 +249,15 @@ def parse_trivy_json(
                         if evidence["fixed_version"] != "not reported"
                         else "Review vendor/advisory guidance and determine an appropriate patched or mitigated version."
                     ),
-                    "external_id": f"{vuln_id}:{pkg}:{evidence['installed_version']}"[
-                        :200
-                    ],
+                    "external_id": _occurrence_id(
+                        "trivy-vuln-v2",
+                        _identity_text(result.get("Target"), "unknown"),
+                        _identity_text(
+                            vuln.get("VulnerabilityID"), "trivy/unknown-vulnerability"
+                        ),
+                        _identity_text(vuln.get("PkgName"), "unknown-package"),
+                        _identity_text(vuln.get("InstalledVersion"), "unknown"),
+                    ),
                 }
             )
         for misconfig in result.get("Misconfigurations") or []:
@@ -260,9 +292,17 @@ def parse_trivy_json(
                         "Review the configuration and apply the scanner's documented remediation guidance.",
                         1000,
                     ),
-                    "external_id": f"{rule}:{target}:{evidence['start_line'] or 0}"[
-                        :200
-                    ],
+                    "external_id": _occurrence_id(
+                        "trivy-config-v2",
+                        _identity_text(result.get("Target"), "unknown"),
+                        _identity_text(
+                            misconfig.get("ID") or misconfig.get("AVDID"),
+                            "trivy/unknown-misconfiguration",
+                        ),
+                        _identity_text(cause.get("Resource"), "unknown"),
+                        evidence["start_line"],
+                        evidence["end_line"],
+                    ),
                 }
             )
         for secret in result.get("Secrets") or []:
@@ -286,9 +326,13 @@ def parse_trivy_json(
                     "confidence": 0.5,
                     "evidence": evidence,
                     "remediation": "Validate the finding, rotate the affected credential if real, remove it from tracked content, and prevent recurrence.",
-                    "external_id": f"{rule}:{target}:{evidence['start_line'] or 0}"[
-                        :200
-                    ],
+                    "external_id": _occurrence_id(
+                        "trivy-secret-v2",
+                        _identity_text(result.get("Target"), "unknown"),
+                        _identity_text(secret.get("RuleID"), "trivy/secret"),
+                        evidence["start_line"],
+                        evidence["end_line"],
+                    ),
                 }
             )
 
@@ -339,7 +383,10 @@ def parse_nuclei_jsonl(
             raise ValueError("invalid Nuclei finding")
         template_id = _text(item.get("template-id"), "nuclei/unknown-template", 160)
         info = item["info"]
-        path = _safe_url_path(item.get("matched-at") or item.get("url"))
+        identity_path = _safe_url_path(
+            item.get("matched-at") or item.get("url"), maximum=None
+        )
+        path = identity_path[:1000] if identity_path is not None else None
         evidence = {
             "template_id": template_id,
             "matcher": _text(item.get("matcher-name"), "not reported", 200),
@@ -362,8 +409,11 @@ def parse_nuclei_jsonl(
                     "Review the template finding, confirm it in the approved scope, and apply product-specific remediation.",
                     1000,
                 ),
-                "external_id": _text(
-                    item.get("template-url"), f"{template_id}:{path or '/'}", 200
+                "external_id": _occurrence_id(
+                    "nuclei-v2",
+                    _identity_text(item.get("template-id"), "nuclei/unknown-template"),
+                    _identity_text(item.get("matcher-name"), "not reported"),
+                    identity_path or "/",
                 ),
             }
         )

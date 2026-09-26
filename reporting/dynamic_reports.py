@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from io import BytesIO
 import pandas as pd
-from jinja2 import Environment, FileSystemLoader, Template
+from jinja2 import Environment, FileSystemLoader, Template, TemplateNotFound
 
 from database import get_db_manager
 
@@ -798,14 +798,9 @@ class DynamicReportGenerator:
 
     def generate_technical_report(self, session_data: Dict[str, Any]) -> str:
         """Generate detailed technical report"""
-        template = (
-            self.jinja_env.get_template("technical_report.html")
-            if self.jinja_env.get_template
-            else None
-        )
-
-        if not template:
-            # Return basic text report if template not available
+        try:
+            template = self.jinja_env.get_template("technical_report.html")
+        except TemplateNotFound:
             return self._generate_text_technical_report(session_data)
 
         return template.render(session_data=session_data)

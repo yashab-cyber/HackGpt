@@ -46,7 +46,7 @@ Terminal reports are sealed before durable publication. Running checkpoints are 
 | DNS rebinding/private-target pivot | URL validation, public-address validation, DNS-pinned native sockets, no redirects | Public routing/TLS validation still depends on the host OS/network; private-network assessment is unsupported. |
 | Browser/API cross-origin abuse | Loopback bind, bearer token, strict Host/Origin, no CORS, CSP/no-store | Malware or another process with local-user privileges may still access local resources. |
 | Prompt injection expands authority | Model receives minimized normalized context; action registry and scope checks are enforced outside model | Model text can still be misleading; human review remains required. |
-| Scanner output claims exploitation | Candidate-only normalization and verification firewall | Third-party scanner execution is not yet bundled or pinned. |
+| Scanner output claims exploitation | Candidate-only normalization and verification firewall | Only the reviewed Semgrep CE runner executes; its normalized output remains candidate-only and never establishes exploitation. |
 | Secret leakage in reports | Native proof uses fresh synthetic canaries and digests; parser minimization removes selected sensitive raw fields | Future adapters require adapter-specific minimization tests; generic redaction is not a proof that every secret is removed. |
 | Customer data sampled as proof | Current proof uses owned synthetic records only | Authenticated customer environments need designated test records before that feature can be enabled. |
 | Run marked complete after crash | Active checkpoints, atomic finalization, restart recovery to interrupted/inconclusive | Device/filesystem failure can still make a run non-durable; that state blocks export/retest use. |
@@ -54,7 +54,7 @@ Terminal reports are sealed before durable publication. Running checkpoints are 
 | Cloud model receives data without consent | Cloud processing is engagement-specific opt-in; context omits target URL, authorization notes, raw evidence and credentials | Provider/runtime/network behavior is outside the workbench; stronger no-egress claims require deployment controls and measurement. |
 | Evidence bundle represented as signed proof | UI/docs label hashes and ZIP manifest unsigned | Digital signing/key management is not implemented. |
 | Local database theft | Restrictive file modes where supported | Application-level encryption at rest is not implemented. |
-| Tool supply-chain compromise | No third-party scanner binaries are bundled in this milestone | Future runner packaging must pin versions/images, licenses, checksums and SBOM entries before execution support is claimed. |
+| Tool supply-chain compromise | Semgrep CE runs only from a preinstalled digest-pinned container with `--pull never`, network disabled, read-only source/rules mounts, dropped capabilities, `no-new-privileges`, and the calling Linux UID/GID | The image is not bundled and must be provisioned at the reviewed digest; other runners require independent version/license/SBOM and sandbox review before execution support. |
 
 ## Explicitly out of scope for this milestone
 
@@ -63,7 +63,7 @@ Terminal reports are sealed before durable publication. Running checkpoints are 
 - Credential harvesting, persistence, lateral movement or customer-database dumps.
 - Private-network scanning and broad subnet discovery.
 - Signed reports/releases or application-managed encrypted storage.
-- Executable Semgrep, Trivy, Nuclei, ZAP or Nmap runners.
+- Executable Trivy, Nuclei, ZAP or Nmap runners.
 - Claims that a completed run means the target is secure.
 
 ## Security review triggers
