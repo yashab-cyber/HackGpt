@@ -34,7 +34,6 @@ import hashlib
 import uuid
 from typing import Dict, List, Any, Optional, Union
 
-# Load environment variables
 try:
     from dotenv import load_dotenv
 
@@ -43,7 +42,6 @@ except ImportError:
     pass
 
 
-# Core imports with fallback handling
 def safe_import(module_name, package=None):
     """Safely import modules with error handling"""
     try:
@@ -55,7 +53,6 @@ def safe_import(module_name, package=None):
         return None
 
 
-# Essential imports
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -63,7 +60,6 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.prompt import Prompt, Confirm
 from rich.markdown import Markdown
 
-# Optional imports
 requests = safe_import("requests")
 openai = safe_import("openai")
 flask = safe_import("flask")
@@ -79,7 +75,6 @@ pyttsx3 = safe_import("pyttsx3")
 numpy = safe_import("numpy")
 pandas = safe_import("pandas")
 
-# Import our custom modules
 try:
     from database import get_db_manager, PentestSession, Vulnerability, User, AuditLog
     from ai_engine import get_advanced_ai_engine
@@ -94,11 +89,9 @@ except ImportError as e:
     print(f"Warning: Some modules not available: {e}")
     MODULES_AVAILABLE = False
 
-# Initialize Rich Console
 console = Console()
 
 
-# Configuration
 class Config:
     """Application configuration manager"""
 
@@ -107,7 +100,6 @@ class Config:
         self.config_file = config_file
         self.load_config()
 
-        # Environment variables override config file
         self.DATABASE_URL = os.getenv(
             "DATABASE_URL",
             self.config.get(
@@ -137,7 +129,6 @@ class Config:
             "LDAP_BIND_PASSWORD", self.config.get("ldap", "bind_password", fallback="")
         )
 
-        # Application settings
         self.DEBUG = self.config.getboolean("app", "debug", fallback=False)
         self.LOG_LEVEL = self.config.get("app", "log_level", fallback="INFO")
         self.MAX_WORKERS = self.config.getint("performance", "max_workers", fallback=10)
@@ -151,7 +142,6 @@ class Config:
             "features", "enable_realtime_dashboard", fallback=True
         )
 
-        # Cloud settings
         self.DOCKER_HOST = os.getenv(
             "DOCKER_HOST",
             self.config.get(
@@ -209,10 +199,8 @@ class Config:
             self.config.write(f)
 
 
-# Initialize configuration
 config = Config()
 
-# Setup logging
 log_dir = Path("/var/log")
 if not log_dir.exists() or not os.access(log_dir, os.W_OK):
     log_dir = Path.cwd() / "logs"
@@ -225,7 +213,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("hackgpt")
 
-# ASCII Banner
 BANNER = """
 [bold red]
     ██╗  ██╗ █████╗  ██████╗██╗  ██╗ ██████╗ ██████╗ ████████╗
@@ -249,18 +236,14 @@ class EnterpriseHackGPT:
         self.console = Console()
         self.logger = logging.getLogger("hackgpt.main")
 
-        # Initialize components
         self.initialize_components()
 
-        # Initialize services
         self.initialize_services()
 
-        # Setup signal handlers
         self.setup_signal_handlers()
 
     def initialize_components(self):
         """Initialize core components"""
-        # Initialize all attributes first with fallback values
         self.auth = None
         self.cache = None
         self.processor = None
@@ -268,7 +251,6 @@ class EnterpriseHackGPT:
         self.db = None
 
         try:
-            # Database
             if MODULES_AVAILABLE:
                 self.db = get_db_manager()
                 self.console.print("[green]✓[/green] Database connection initialized")
@@ -276,7 +258,6 @@ class EnterpriseHackGPT:
                 self.db = None
                 self.console.print("[yellow]⚠[/yellow] Database not available")
 
-            # AI Engine
             if MODULES_AVAILABLE and (config.OPENAI_API_KEY or self.check_local_llm()):
                 self.ai_engine = get_advanced_ai_engine()
                 self.console.print("[green]✓[/green] Advanced AI Engine initialized")
@@ -284,7 +265,6 @@ class EnterpriseHackGPT:
                 self.ai_engine = self.create_fallback_ai()
                 self.console.print("[yellow]⚠[/yellow] Using fallback AI engine")
 
-            # Authentication
             if MODULES_AVAILABLE:
                 try:
                     self.auth = EnterpriseAuth()
@@ -300,7 +280,6 @@ class EnterpriseHackGPT:
                 self.auth = None
                 self.console.print("[yellow]⚠[/yellow] Authentication not available")
 
-            # Cache Manager
             if MODULES_AVAILABLE:
                 try:
                     self.cache = get_cache_manager()
@@ -314,7 +293,6 @@ class EnterpriseHackGPT:
                 self.cache = None
                 self.console.print("[yellow]⚠[/yellow] Cache not available")
 
-            # Parallel Processor
             if MODULES_AVAILABLE:
                 try:
                     self.processor = get_parallel_processor()
@@ -332,11 +310,9 @@ class EnterpriseHackGPT:
                     "[yellow]⚠[/yellow] Parallel processing not available"
                 )
 
-            # Tool Manager
             self.tool_manager = EnterpriseToolManager()
             self.console.print("[green]✓[/green] Enterprise tool manager initialized")
 
-            # Compliance Framework
             if MODULES_AVAILABLE:
                 self.compliance = ComplianceFrameworkMapper()
                 self.console.print("[green]✓[/green] Compliance framework initialized")
@@ -346,7 +322,6 @@ class EnterpriseHackGPT:
                     "[yellow]⚠[/yellow] Compliance framework not available"
                 )
 
-            # Exploitation Engine
             if MODULES_AVAILABLE:
                 self.exploitation = AdvancedExploitationEngine()
                 self.zero_day_detector = ZeroDayDetector()
@@ -360,7 +335,6 @@ class EnterpriseHackGPT:
                     "[yellow]⚠[/yellow] Advanced exploitation not available"
                 )
 
-            # Reporting
             if MODULES_AVAILABLE:
                 self.report_generator = DynamicReportGenerator()
                 self.console.print(
@@ -377,7 +351,6 @@ class EnterpriseHackGPT:
     def initialize_services(self):
         """Initialize enterprise services"""
         try:
-            # Cloud services
             if MODULES_AVAILABLE and docker:
                 self.docker_manager = DockerManager()
                 self.console.print("[green]✓[/green] Docker manager initialized")
@@ -396,7 +369,6 @@ class EnterpriseHackGPT:
                 self.service_registry = None
                 self.console.print("[yellow]⚠[/yellow] Cloud services not available")
 
-            # Voice interface
             if config.ENABLE_VOICE and sr and pyttsx3:
                 self.voice_interface = EnterpriseVoiceInterface()
                 self.console.print("[green]✓[/green] Voice interface initialized")
@@ -404,7 +376,6 @@ class EnterpriseHackGPT:
                 self.voice_interface = None
                 self.console.print("[yellow]⚠[/yellow] Voice interface not available")
 
-            # Web dashboard
             if config.ENABLE_WEB_DASHBOARD and flask:
                 self.web_dashboard = EnterpriseWebDashboard(self)
                 self.console.print("[green]✓[/green] Web dashboard initialized")
@@ -412,7 +383,6 @@ class EnterpriseHackGPT:
                 self.web_dashboard = None
                 self.console.print("[yellow]⚠[/yellow] Web dashboard not available")
 
-            # Real-time dashboard
             if config.ENABLE_REALTIME_DASHBOARD and MODULES_AVAILABLE:
                 self.realtime_dashboard = get_realtime_dashboard()
                 self.console.print("[green]✓[/green] Real-time dashboard initialized")
@@ -475,7 +445,6 @@ class EnterpriseHackGPT:
         """Display the HackGPT banner with system status"""
         self.console.print(BANNER)
 
-        # System status
         status_table = Table(title="System Status", show_header=True)
         status_table.add_column("Component", style="cyan")
         status_table.add_column("Status", style="green")
@@ -557,7 +526,6 @@ class EnterpriseHackGPT:
         target = Prompt.ask("[cyan]Enter target (IP/domain/CIDR)[/cyan]")
         scope = Prompt.ask("[cyan]Enter scope description[/cyan]")
 
-        # Assessment type
         assessment_types = ["black-box", "white-box", "gray-box"]
         assessment_type = Prompt.ask(
             "[cyan]Assessment type[/cyan]",
@@ -565,7 +533,6 @@ class EnterpriseHackGPT:
             default="black-box",
         )
 
-        # Compliance frameworks
         if self.compliance:
             frameworks = ["OWASP", "NIST", "ISO27001", "SOC2", "PCI-DSS"]
             compliance_framework = Prompt.ask(
@@ -574,10 +541,8 @@ class EnterpriseHackGPT:
         else:
             compliance_framework = "OWASP"
 
-        # Authorization
         auth_key = Prompt.ask("[cyan]Enter authorization key[/cyan]", password=True)
 
-        # Additional options
         parallel_execution = Confirm.ask(
             "[cyan]Enable parallel execution?[/cyan]", default=True
         )
@@ -607,7 +572,7 @@ class EnterpriseHackGPT:
             f"[green]Starting Enterprise Pentest: {target_info['target']}[/green]"
         )
 
-        # Create session in database
+        session = None
         if self.db:
             session = self.db.create_pentest_session(
                 target=target_info["target"],
@@ -619,7 +584,6 @@ class EnterpriseHackGPT:
         else:
             session_id = str(uuid.uuid4())
 
-        # Initialize enterprise pentesting phases
         phases = EnterprisePentestingPhases(
             session_id=session_id,
             ai_engine=self.ai_engine,
@@ -643,7 +607,6 @@ class EnterpriseHackGPT:
                 console=self.console,
             ) as progress:
 
-                # Execute all phases
                 phase_tasks = [
                     (
                         "Phase 1: Intelligence Gathering & Reconnaissance",
@@ -683,12 +646,11 @@ class EnterpriseHackGPT:
                 "[bold green]Enterprise Pentest Completed Successfully![/bold green]"
             )
 
-            if self.db:
+            if self.db and session:
                 session.status = "completed"
                 session.completed_at = datetime.utcnow()
                 self.db.update_session(session)
 
-            # Show summary
             self.show_pentest_summary(session_id, phases.results)
 
         except KeyboardInterrupt:
@@ -819,7 +781,6 @@ class EnterpriseHackGPT:
 
         self.console.print("[cyan]Deploying HackGPT Enterprise Stack...[/cyan]")
 
-        # Create services configuration
         from cloud.docker_manager import ServiceDefinition, ContainerConfig
 
         services = [
@@ -859,10 +820,8 @@ class EnterpriseHackGPT:
             ),
         ]
 
-        # Generate docker-compose file
         compose_content = self.docker_manager.generate_docker_compose(services)
 
-        # Deploy stack
         success = self.docker_manager.deploy_stack(
             compose_content, "hackgpt-enterprise"
         )
@@ -911,7 +870,6 @@ class EnterpriseHackGPT:
                     "ai_enhanced": data.get("ai_enhanced", True),
                 }
 
-                # Start pentest in background
                 thread = threading.Thread(
                     target=self.run_full_enterprise_pentest, args=(target_info,)
                 )
@@ -1020,7 +978,6 @@ class EnterpriseHackGPT:
             self.logger.error(f"Error during shutdown: {e}")
 
 
-# Placeholder classes for missing components
 class EnterpriseToolManager:
     """Enterprise tool manager with advanced features"""
 
@@ -1199,12 +1156,10 @@ def main():
 
     args = parser.parse_args()
 
-    # Update config file path if specified
     if args.config != "config.ini":
         global config
         config = Config(args.config)
 
-    # Initialize HackGPT Enterprise
     hackgpt = EnterpriseHackGPT()
 
     if args.api:
@@ -1214,7 +1169,6 @@ def main():
     elif args.realtime:
         hackgpt.start_realtime_dashboard()
     elif all([args.target, args.scope, args.auth_key]):
-        # Direct execution mode
         target_info = {
             "target": args.target,
             "scope": args.scope,
@@ -1227,7 +1181,6 @@ def main():
         hackgpt.show_banner()
         hackgpt.run_full_enterprise_pentest(target_info)
     else:
-        # Interactive mode
         hackgpt.run()
 
 
